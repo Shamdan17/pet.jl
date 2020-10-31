@@ -147,11 +147,70 @@ end
 @registerDataType "MultiRC" MultiRC
 
 
+struct ReCoRDAnswer
+    start::Int
+    ending::Int
+    text::String
+end
+
+function ReCoRDAnswer(content::Dict, ctx::String)
+    st = content["start"]
+    nd = content["end"]
+    text = ctx[st+1:nd+1]
+    ReCoRDAnswer(st, nd, text)
+end
+
+struct ReCoRDQuestion
+    query::String       
+    answers::Array{ReCoRDAnswer}
+    idx::Int
+    labeled::Bool
+end
+
+function ReCoRDQuestion(content::Dict, ctx::String)
+    query = content["query"]
+    answers = [ReCoRDAnswer(q, ctx) for q in get(content, "answers", [])]
+    idx = content["idx"]
+    labeled = length(answers)>0
+    ReCoRDQuestion(query, answers, idx, labeled)
+end
 
 
-# TODO: ReCoRD
+struct ReCoRDEntity
+    start::Int
+    ending::Int
+    text::String
+end
 
+function ReCoRDEntity(content::Dict, ctx::String)
+    st = content["start"]
+    nd = content["end"]
+    text = ctx[st+1:nd+1]
+    ReCoRDEntity(st, nd, text)
+end
 
+# ReCoRD data object
+struct ReCoRD <: datum
+    source::String      # Text source
+    text::String        # Context text
+    entities::Array{ReCoRDEntity} # Array of entities
+    qas::Array{ReCoRDQuestion} # Array of questions
+    idx::Int            # Index in the original dataset
+    labeled::Bool       # Whether the questions have their correct answers labeled
+end
+
+@registerDataType "ReCoRD" ReCoRD
+
+function ReCoRD(json::AbstractString)
+    content = JSON.parse(json)
+    source = content["source"]
+    text = content["passage"]["text"]
+    entities = [ReCoRDEntity(q, text) for q in content["passage"]["entities"]]
+    questions = [ReCoRDQuestion(q, text) for q in content["qas"]]
+    labeled = questions[1].labeled
+    idx = content["idx"]
+    ReCoRD(source, text, entities, questions, idx, labeled)
+end
 
 
 # RTE data object
