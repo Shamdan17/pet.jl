@@ -3,6 +3,9 @@ using Test
 
 # A dictionary containing the names of all defined datatypes
 registeredtypes = Dict{String, Any}()
+
+export registeredtypes
+
 # Register a datatype with a name
 macro registerDataType(name::String, typ)
     :(registeredtypes[$name]=$typ)
@@ -13,6 +16,13 @@ testdatadir = joinpath("data", "test")
 # All data objects are subtypes of this abstract type
 abstract type datum end
 
+function getChoices(d::datum)
+    error("Not implemented for this datatype. Please define the function for this datatype.")
+end
+
+function getLabel(d::datum)
+    error("Not implemented for this datatype. Please define the function for this datatype.")
+end
 
 
 # BoolQ data object
@@ -38,7 +48,14 @@ function BoolQ(json::AbstractString)
           contents["idx"])
 end
 
+function getChoices(b::BoolQ)
+    return [1, 2]
+end
 
+function getLabel(b::BoolQ)
+    @assert b.labeled "This instance is not labeled."
+    return b.label ? 2 : 1
+end
 
 # CommitmentBank data object
 # Original paper: https://semanticsarchive.net/Archive/Tg3ZGI2M/Marneffe.pdf
@@ -63,8 +80,14 @@ function CB(json::AbstractString)
           contents["idx"])
 end
 
+function getChoices(c::CB)
+    return [1, 2, 3]
+end
 
-
+function getLabel(c::CB)
+    @assert c.labeled "This instance is not labeled."
+    return argmax(["entailment", "contradiction", "neutral"].==c.label)
+end
 
 # COPA data object
 # Original paper: https://people.ict.usc.edu/~gordon/publications/AAAI-SPRING11A.PDF
@@ -93,6 +116,14 @@ function COPA(json::AbstractString)
           contents["idx"])
 end
 
+function getChoices(c::COPA)
+    return [0, 1]
+end
+
+function getLabel(c::COPA)
+    @assert c.labeled "This instance is not labeled."
+    return c.label
+end
 
 
 
@@ -147,6 +178,16 @@ end
 @registerDataType "MultiRC" MultiRC
 
 
+function getChoices(m::MultiRC)
+    return [[a.text for a in q.options] for q in m.questions]
+end
+
+function getLabel(m::MultiRC)
+    @assert m.labeled "This instance is not labeled."
+    return [[a.label for a in q.options] for q in m.questions]
+end
+
+
 struct ReCoRDAnswer
     start::Int
     ending::Int
@@ -156,7 +197,8 @@ end
 function ReCoRDAnswer(content::Dict, ctx::String)
     st = content["start"]
     nd = content["end"]
-    text = ctx[st+1:nd+1]
+    indices = collect(eachindex(ctx))
+    text = ctx[indices[st+1]:indices[nd+1]]
     ReCoRDAnswer(st, nd, text)
 end
 
@@ -185,7 +227,8 @@ end
 function ReCoRDEntity(content::Dict, ctx::String)
     st = content["start"]
     nd = content["end"]
-    text = ctx[st+1:nd+1]
+    indices = collect(eachindex(ctx))
+    text = ctx[indices[st+1]:indices[nd+1]]
     ReCoRDEntity(st, nd, text)
 end
 
@@ -212,6 +255,21 @@ function ReCoRD(json::AbstractString)
     ReCoRD(source, text, entities, questions, idx, labeled)
 end
 
+function getChoices(r::ReCoRD)
+    ents = [ent.text for ent in r.entities]
+    # Get unique only
+    ents = [ent for ent in Set(ents)]
+    return [ents for q in r.qas]
+end
+
+function getLabel(r::ReCoRD)
+    @assert r.labeled "This instance is not labeled."
+    ents = getChoices(r)
+    answers = [[(ent in [a.text for a in q.answers]) ? 1 : 0 for ent in ents[1]] for q in r.qas]
+    return answers
+end
+
+
 
 # RTE data object
 struct RTE <: datum
@@ -235,7 +293,14 @@ function RTE(json::AbstractString)
           contents["idx"])
 end
 
+function getChoices(r::RTE)
+    return [1, 2]
+end
 
+function getLabel(r::RTE)
+    @assert r.labeled "This instance is not labeled."
+    return argmax(["entailment", "not_entailment"].==r.label)
+end
 
 
 # WiC data object
@@ -271,6 +336,14 @@ function WiC(json::AbstractString)
 end
 
 
+function getChoices(w::WiC)
+    return [1, 2]
+end
+
+function getLabel(w::WiC)
+    @assert w.labeled "This instance is not labeled."
+    return w.label ? 2 : 1
+end
 
 
 # WSC data object
@@ -301,14 +374,29 @@ function WSC(json::AbstractString)
         contents["idx"])
 end
 
+
+function getChoices(w::WSC)
+    return [1, 2]
+end
+
+function getLabel(w::WSC)
+    @assert w.labeled "This instance is not labeled."
+    return w.label ? 2 : 1
+end
+
+
 @testset "Testing datatype constructors" begin
     for (name, datatype) in registeredtypes
         filename = name*"-labeled.jsonl"
         txt = read(open(joinpath(testdatadir, filename), "r"), String)
         @test datatype(txt) != nothing
+        @test getLabel(datatype(txt)) != nothing
+        @test getChoices(datatype(txt)) != nothing
         
+
         filename = name*"-unlabeled.jsonl"
         txt = read(open(joinpath(testdatadir, filename), "r"), String)
-        @test datatype(txt) != nothing
+        @test_throws AssertionError getLabel(datatype(txt))
+        @test getChoices(datatype(txt)) != nothing
     end
-end
+end;
