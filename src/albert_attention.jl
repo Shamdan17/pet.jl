@@ -16,18 +16,18 @@ mutable struct MultiHeadAttention
     selfmask::Bool
 end
 
-function MultiHeadAttention(dmodel::Int, num_heads::Int, dropout; selfmask=false, scale=1/sqrt(dmodel÷num_heads))
+function MultiHeadAttention(dmodel::Int, num_heads::Int, dropout; selfmask=false, scale=1/sqrt(dmodel÷num_heads), atype=atype())
     # dmodel MUST be a multiple of nheads
     @assert dmodel % num_heads == 0
     dk = dmodel ÷ num_heads
-    q_proj = Linear(dmodel, dk, num_heads)
-    k_proj = Linear(dmodel, dk, num_heads)
-    v_proj = Linear(dmodel, dk, num_heads)
-    o_proj = Linear(dmodel, dmodel)
+    q_proj = Linear(dmodel, dk, num_heads, atype=atype)
+    k_proj = Linear(dmodel, dk, num_heads, atype=atype)
+    v_proj = Linear(dmodel, dk, num_heads, atype=atype)
+    o_proj = Linear(dmodel, dmodel, atype=atype)
     MultiHeadAttention(q_proj, k_proj, v_proj, o_proj, dropout, scale, selfmask)
 end
 
-function (m::MultiHeadAttention)(queries, queried; keymask=nothing, o...)
+function (m::MultiHeadAttention)(queries, queried; keymask=nothing, return_scores=false, o...)
     # queries: HxT1xB
     # queried: HxT2xB
     dk, nheads = size(m.q_proj.w)[1:2]
@@ -48,7 +48,7 @@ function (m::MultiHeadAttention)(queries, queried; keymask=nothing, o...)
     c = bmm(s, v);                                    @size c (T1, dk, nheads, B)
     c = reshape(c, (T1, :, B));                       @size c (T1, dk*nheads, B)
     o = m.o_proj(permutedims(c, (2, 1, 3)));         @size o (dk*nheads, T1, B)
-    o
+    return_scores ? (o, s) : o
 end
 
 function attnmask(input, keymask, do_selfmask) # s = (Tq, Tk, H, B), keymask = (Tk, B), selfmask=Boolean
@@ -84,9 +84,9 @@ mutable struct ALBERTAttentionBlock
     attn_layer
 end
 
-function ALBERTAttentionBlock(dmodel::Int, num_heads::Int, attention_pdrop, output_dropout)
-    attention_layer = MultiHeadAttention(dmodel, num_heads, attention_pdrop)
-    sublayer = SubLayer(attention_layer, dmodel, output_dropout)
+function ALBERTAttentionBlock(dmodel::Int, num_heads::Int, attention_pdrop, output_dropout, atype=atype())
+    attention_layer = MultiHeadAttention(dmodel, num_heads, attention_pdrop, atype=atype)
+    sublayer = SubLayer(attention_layer, dmodel, output_dropout, atype=atype)
     ALBERTAttentionBlock(sublayer)
 end
 

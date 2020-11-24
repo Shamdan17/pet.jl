@@ -1,6 +1,7 @@
 # layers.jl contains layers that are not specific to ALBERT
 
 using Knet
+using Knet: atype
 using Statistics: mean, std
 using BenchmarkTools
 
@@ -16,9 +17,9 @@ Creates an layer normalization layer. Inputs should be hidden vectors with hidde
 Input shape: Tensor of arbitrary number of hidden vectors [dmodel, o...]
 Output shape: Identical shape of [dmodel, o...]
 """
-function LayerNorm(dmodel; eps=1e-12)
-    a = param(dmodel; init=ones, atype=Array{Float32})
-    b = param(dmodel; init=zeros, atype=Array{Float32})
+function LayerNorm(dmodel; eps=1e-12, atype=atype())
+    a = param(dmodel; init=ones, atype=atype)
+    b = param(dmodel; init=zeros, atype=atype)
     LayerNorm(a, b, eps)
 end
 
@@ -53,8 +54,8 @@ julia> input = [idx for idx in 1:30]; # Input indices, shape: [30]
 julia> embeddings = emb(input); # Embeddings of size [64, 30]
 ```
 """
-function Embed(vocab_size, dmodel)
-    Embed(param(dmodel, vocab_size))
+function Embed(vocab_size, dmodel; atype=atype())
+    Embed(param(dmodel, vocab_size, atype=atype))
 end
 
 function (e::Embed)(x, o...); e.w[:,x]; end
@@ -72,8 +73,8 @@ Output shape: [dmodel, o...]
 """
 mutable struct SubLayer; layer; norm; pdrop; end
 
-function SubLayer(layer, dmodel::Int, pdrop::Number)
-    SubLayer(layer, LayerNorm(dmodel), pdrop)
+function SubLayer(layer, dmodel::Int, pdrop::Number; atype=atype())
+    SubLayer(layer, LayerNorm(dmodel, atype=atype), pdrop)
 end
 
 function (l::SubLayer)(x, xs...)
@@ -93,9 +94,9 @@ Output shape: [outputs..., o...]
 mutable struct Linear; w; b; end
 
 
-function Linear(input::Int, outputs...; bias=true)
-    Linear(param(outputs..., input),
-        bias ? param0(outputs...) : nothing)
+function Linear(input::Int, outputs...; bias=true, atype=atype())
+    Linear(param(outputs..., input, atype=atype),
+        bias ? param0(outputs..., atype=atype) : nothing)
 end
 
 function (l::Linear)(x, o...)
@@ -136,13 +137,13 @@ mutable struct FeedForwardNetwork
     activation
 end
 
-function FeedForwardNetwork(dmodel::Int, ffn_dim::Int, activation)
+function FeedForwardNetwork(dmodel::Int, ffn_dim::Int, activation; atype=atype())
     @assert !(typeof(activation)<:AbstractString) || haskey(activations, activation)
     if typeof(activation)<:AbstractString
         activation = activations[activation]
     end
-    fc1 = Linear(dmodel, ffn_dim)
-    fc2 = Linear(ffn_dim, dmodel)
+    fc1 = Linear(dmodel, ffn_dim, atype=atype)
+    fc2 = Linear(ffn_dim, dmodel, atype=atype)
     FeedForwardNetwork(fc1, fc2, activation)
 end
 

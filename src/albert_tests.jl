@@ -2,7 +2,7 @@ using Test
 using PyCall
 include("albert_attention.jl")
 include("albert_embeddings.jl")
-include("albert_encoder.jl")
+include("albert_layer.jl")
 
 model_url = "https://huggingface.co/albert-base-v2/resolve/main/pytorch_model.bin"
 model_path = joinpath("test_files", "pytorch_model.bin")
@@ -97,14 +97,14 @@ ff.ffn_sublayer.norm.b = weights["albert.encoder.albert_layer_groups.0.albert_la
     @test all(abs.(ffn_out .- permutedims(ffn_test_gt, (3, 2, 1))).<eps)
 end
 
-# Initialize entire Encoder block with already initialized ffn and mha
-eb = ALBERTEncoderBlock(mha,ff)
+# Initialize entire Albert layer with already initialized ffn and mha
+albert = ALBERTLayer(mha,ff)
 
-@testset "Testing ALBERT Encoder block" begin
+@testset "Testing ALBERT layer" begin
 	# forward pass
-	eb_out = eb(permutedims(mha_test_tensor, (3, 2, 1)))
+	albert_out = albert(permutedims(mha_test_tensor, (3, 2, 1)))
 	eps = 2e-5
 
 	# Compare with GT
-    @test all(abs.(eb_out .- permutedims(ffn_test_gt, (3, 2, 1))).<eps)
+    @test all(abs.(albert_out .- permutedims(ffn_test_gt, (3, 2, 1))).<eps)
 end

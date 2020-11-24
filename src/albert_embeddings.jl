@@ -11,11 +11,11 @@ mutable struct ALBERTEmbedding
 end
 
 
-function ALBERTEmbedding(vocab_size, type_size, embed_size, max_positions, dropout=0)
-    word_embeds = Embed(vocab_size, embed_size)
-    token_type_embeds = Embed(type_size, embed_size)
-    pos_embeds = Embed(max_positions, embed_size)
-    lnorm = LayerNorm(embed_size)
+function ALBERTEmbedding(vocab_size, type_size, embed_size, max_positions, dropout=0, atype=atype())
+    word_embeds = Embed(vocab_size, embed_size, atype=atype)
+    token_type_embeds = Embed(type_size, embed_size, atype=atype)
+    pos_embeds = Embed(max_positions, embed_size, atype=atype)
+    lnorm = LayerNorm(embed_size, atype=atype)
     return ALBERTEmbedding(word_embeds, token_type_embeds, pos_embeds, lnorm, dropout)
 end
 
@@ -36,6 +36,3 @@ function (b::ALBERTEmbedding)(input_ids, type_embeds=nothing, position_ids=nothi
     # Apply layernorm then dropout
     dropout(b.lnorm(embeddings), b.pdrop)    
 end
-
-
-# TODO: Add tests with PyCall to show identical functionality
