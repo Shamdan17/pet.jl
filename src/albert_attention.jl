@@ -27,7 +27,7 @@ function MultiHeadAttention(dmodel::Int, num_heads::Int, dropout; selfmask=false
     MultiHeadAttention(q_proj, k_proj, v_proj, o_proj, dropout, scale, selfmask)
 end
 
-function (m::MultiHeadAttention)(queries, queried; keymask=nothing)
+function (m::MultiHeadAttention)(queries, queried; keymask=nothing, o...)
     # queries: HxT1xB
     # queried: HxT2xB
     dk, nheads = size(m.q_proj.w)[1:2]
@@ -77,7 +77,7 @@ function attnmask(input, keymask, do_selfmask) # s = (Tq, Tk, H, B), keymask = (
 end
 
 # Self attention
-(m::MultiHeadAttention)(x) = m(x, x)
+(m::MultiHeadAttention)(x, o...) = m(x, x, o...)
 
 
 mutable struct ALBERTAttentionBlock
@@ -92,6 +92,6 @@ end
 
 ALBERTAttentionBlock(dmodel::Int, num_heads::Int, pdrop) = ALBERTAttentionBlock(dmodel, num_heads, pdrop, pdrop)
 
-(a::ALBERTAttentionBlock)(input) = a.attn_layer(input)
+(a::ALBERTAttentionBlock)(input, o...) = a.attn_layer(input, o...)
 
 

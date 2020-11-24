@@ -81,7 +81,15 @@ function (l::SubLayer)(x, xs...)
 end
 
 
-# Generalized mmul that accepts more than 2 dims
+"""
+    Linear(input, outputs...; bias=true)
+
+Creates an generalized linear/affine layer which accepts arbitrary dimensional inputs and can output an arbitrary number of dimensions.
+
+Input shape: Hidden vector of arbitrary dimensions [input, o...]
+Output shape: [outputs..., o...]
+```
+"""
 mutable struct Linear; w; b; end
 
 
@@ -92,9 +100,50 @@ end
 
 function (l::Linear)(x, o...)
     W1, W2, X1, X2 = size(l.w)[1:end-1], size(l.w)[end], size(x)[1], size(x)[2:end]
+    # @show W1,W2,X1,X2, size(x)
     @assert W2 === X1
     y = reshape(l.w,:,W2) * reshape(x,X1,:)
     y = reshape(y, W1..., X2...)
     if l.b!=nothing; y = y .+ l.b; end
     y
 end
+
+
+"""
+    FeedForwardNetwork(dmodel::Int, ffn_dim::Int, activation)
+
+Creates an generalized FeedForwardNetwork with input dimension dmodel and hidden dimension ffn_dim
+A FeedForwardNetwork will project the inputs to the hidden dimension, apply a given activation, then project back to the input dimension.
+
+Activation can be a custom function or one of the following strings:
+
+"relu"      =>  relu
+"tanh"      =>  tanh
+"elu"       =>  elu
+"sigm"      =>  sigmoid
+"gelu"      =>  gelu
+"new_gelu"  =>  new_gelu (This is a tanh approximation of gelu. This is the default for BERT and ALBERT)
+"identity"  =>  identity
+
+
+Input shape: Hidden vector of arbitrary dimensions [dmodel, o...]
+Output shape: [dmodel, o...]
+```
+"""
+mutable struct FeedForwardNetwork
+    fc1::Linear
+    fc2::Linear
+    activation
+end
+
+function FeedForwardNetwork(dmodel::Int, ffn_dim::Int, activation)
+    @assert !(typeof(activation)<:AbstractString) || haskey(activations, activation)
+    if typeof(activation)<:AbstractString
+        activation = activations[activation]
+    end
+    fc1 = Linear(dmodel, ffn_dim)
+    fc2 = Linear(ffn_dim, dmodel)
+    FeedForwardNetwork(fc1, fc2, activation)
+end
+
+(f::FeedForwardNetwork)(x, o...) = f.fc2(f.activation.(f.fc1(x, o...)), o...)
