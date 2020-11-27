@@ -2,9 +2,28 @@
 
 using Knet
 using Knet: atype
+using Knet.Ops21 # For activations
 using Statistics: mean, std
 using BenchmarkTools
+include("gelu_new.jl")
 
+# Valid activation functions
+activations = Dict(
+    "relu"=>relu,
+    "tanh"=>tanh,
+    "elu"=>elu,
+    "sigm"=>sigm,
+    "gelu"=>gelu,
+    "gelu_new"=>gelu_new, # Approx gelu using tanh. This is what is used in BERT as well as ALBERT
+    "identity"=>identity
+)
+
+
+# No longer needed. Model accepts either a custom activation function or the name of one of the available functions
+# # Register an activation with a name
+# macro registerActivation(name::String, act)
+#     :(activations[$name]=$act)
+# end
 
 # Layer Normalization
 mutable struct LayerNorm; a; b; ϵ; end 
@@ -73,8 +92,8 @@ Output shape: [dmodel, o...]
 """
 mutable struct SubLayer; layer; norm; pdrop; end
 
-function SubLayer(layer, dmodel::Int, pdrop::Number; atype=atype())
-    SubLayer(layer, LayerNorm(dmodel, atype=atype), pdrop)
+function SubLayer(layer, dmodel::Int, pdrop::Number;eps=1e-12, atype=atype())
+    SubLayer(layer, LayerNorm(dmodel, eps=eps, atype=atype), pdrop)
 end
 
 function (l::SubLayer)(x, xs...)
@@ -109,6 +128,34 @@ function (l::Linear)(x, o...)
     y
 end
 
+"""
+    Linear(input, outputs...; bias=true)
+
+Creates an generalized linear/affine layer which accepts arbitrary dimensional inputs and can output an arbitrary number of dimensions.
+
+Input shape: Hidden vector of arbitrary dimensions [input, o...]
+Output shape: [outputs..., o...]
+```
+"""
+mutable struct Dense; w; b; f; end
+
+
+function Dense(input::Int, outputs...; activation=relu, bias=true, atype=atype())
+    Dense(param(outputs..., input, atype=atype),
+        bias ? param0(outputs..., atype=atype) : nothing,
+        typeof(activation)<:AbstractString ? activations[activation] : activation)
+end
+
+function (d::Dense)(x, o...)
+    W1, W2, X1, X2 = size(d.w)[1:end-1], size(d.w)[end], size(x)[1], size(x)[2:end]
+    # @show W1,W2,X1,X2, size(x)
+    @assert W2 === X1
+    y = reshape(d.w,:,W2) * reshape(x,X1,:)
+    y = reshape(y, W1..., X2...)
+    if d.b!=nothing; y = y .+ d.b; end
+    d.f.(y)
+end
+
 
 """
     FeedForwardNetwork(dmodel::Int, ffn_dim::Int, activation)
@@ -123,7 +170,7 @@ Activation can be a custom function or one of the following strings:
 "elu"       =>  elu
 "sigm"      =>  sigmoid
 "gelu"      =>  gelu
-"new_gelu"  =>  new_gelu (This is a tanh approximation of gelu. This is the default for BERT and ALBERT)
+"gelu_new"  =>  gelu_new (This is a tanh approximation of gelu. This is the default for BERT and ALBERT)
 "identity"  =>  identity
 
 

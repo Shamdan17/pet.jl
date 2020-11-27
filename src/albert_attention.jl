@@ -27,7 +27,7 @@ function MultiHeadAttention(dmodel::Int, num_heads::Int, dropout; selfmask=false
     MultiHeadAttention(q_proj, k_proj, v_proj, o_proj, dropout, scale, selfmask)
 end
 
-function (m::MultiHeadAttention)(queries, queried; keymask=nothing, return_scores=false, o...)
+function (m::MultiHeadAttention)(queries, queried; keymask=nothing, return_scores=false)
     # queries: HxT1xB
     # queried: HxT2xB
     dk, nheads = size(m.q_proj.w)[1:2]
@@ -47,8 +47,8 @@ function (m::MultiHeadAttention)(queries, queried; keymask=nothing, return_score
     s = dropout(s, m.dropout);                        @size s (T1, T2, nheads, B)
     c = bmm(s, v);                                    @size c (T1, dk, nheads, B)
     c = reshape(c, (T1, :, B));                       @size c (T1, dk*nheads, B)
-    o = m.o_proj(permutedims(c, (2, 1, 3)));         @size o (dk*nheads, T1, B)
-    return_scores ? (o, s) : o
+    out = m.o_proj(permutedims(c, (2, 1, 3)));        @size out (dk*nheads, T1, B)
+    return_scores ? (out, s) : (out, nothing)
 end
 
 function attnmask(input, keymask, do_selfmask) # s = (Tq, Tk, H, B), keymask = (Tk, B), selfmask=Boolean
@@ -77,21 +77,27 @@ function attnmask(input, keymask, do_selfmask) # s = (Tq, Tk, H, B), keymask = (
 end
 
 # Self attention
-(m::MultiHeadAttention)(x, o...) = m(x, x, o...)
-
+# (m::MultiHeadAttention)(x) = m(x, x)
+function (m::MultiHeadAttention)(x; keymask=nothing, return_scores=false)
+    m(x, x, keymask=keymask, return_scores=return_scores)
+end
 
 mutable struct ALBERTAttentionBlock
     attn_layer
+    lnorm
+    pdrop
 end
 
-function ALBERTAttentionBlock(dmodel::Int, num_heads::Int, attention_pdrop, output_dropout, atype=atype())
+function ALBERTAttentionBlock(dmodel::Int, num_heads::Int, attention_pdrop, output_dropout; atype=atype())
     attention_layer = MultiHeadAttention(dmodel, num_heads, attention_pdrop, atype=atype)
-    sublayer = SubLayer(attention_layer, dmodel, output_dropout, atype=atype)
-    ALBERTAttentionBlock(sublayer)
+    lnorm = LayerNorm(dmodel, atype=atype)
+    ALBERTAttentionBlock(attention_layer, lnorm, output_dropout)
 end
 
 ALBERTAttentionBlock(dmodel::Int, num_heads::Int, pdrop) = ALBERTAttentionBlock(dmodel, num_heads, pdrop, pdrop)
 
-(a::ALBERTAttentionBlock)(input, o...) = a.attn_layer(input, o...)
-
+function (a::ALBERTAttentionBlock)(input; keymask=nothing, return_scores=false)
+    attention_out, scores = a.attn_layer(input, keymask=keymask, return_scores=return_scores)
+    a.lnorm(input .+ dropout(attention_out, a.pdrop)), scores
+end
 

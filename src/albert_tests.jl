@@ -53,21 +53,21 @@ mha_test_gt = numpy.load("test_files/attnout.npy");
 mha_test_gt = Array{Float32}(mha_test_gt);
 # Initialize MHA with weights
 mha = ALBERTAttentionBlock(768, 12, 0);
-mha.attn_layer.norm.a = weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.LayerNorm.weight"][:cpu]()[:numpy]()
-mha.attn_layer.norm.b = weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.LayerNorm.bias"][:cpu]()[:numpy]()
-mha.attn_layer.layer.q_proj.w = reshape(weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.query.weight"][:cpu]()[:numpy](),size(mha.attn_layer.layer.q_proj.w))
-mha.attn_layer.layer.q_proj.b = reshape(weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.query.bias"][:cpu]()[:numpy](),size(mha.attn_layer.layer.q_proj.b))
-mha.attn_layer.layer.v_proj.w = reshape(weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.value.weight"][:cpu]()[:numpy](),size(mha.attn_layer.layer.v_proj.w))
-mha.attn_layer.layer.v_proj.b = reshape(weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.value.bias"][:cpu]()[:numpy](),size(mha.attn_layer.layer.v_proj.b))
-mha.attn_layer.layer.k_proj.w = reshape(weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.key.weight"][:cpu]()[:numpy](),size(mha.attn_layer.layer.k_proj.w))
-mha.attn_layer.layer.k_proj.b = reshape(weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.key.bias"][:cpu]()[:numpy](),size(mha.attn_layer.layer.k_proj.b))
-mha.attn_layer.layer.o_proj.w = reshape(weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.dense.weight"][:cpu]()[:numpy](),size(mha.attn_layer.layer.o_proj.w))
-mha.attn_layer.layer.o_proj.b = reshape(weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.dense.bias"][:cpu]()[:numpy](),size(mha.attn_layer.layer.o_proj.b));
+mha.lnorm.a = weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.LayerNorm.weight"][:cpu]()[:numpy]()
+mha.lnorm.b = weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.LayerNorm.bias"][:cpu]()[:numpy]()
+mha.attn_layer.q_proj.w = reshape(weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.query.weight"][:cpu]()[:numpy](),size(mha.attn_layer.q_proj.w))
+mha.attn_layer.q_proj.b = reshape(weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.query.bias"][:cpu]()[:numpy](),size(mha.attn_layer.q_proj.b))
+mha.attn_layer.v_proj.w = reshape(weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.value.weight"][:cpu]()[:numpy](),size(mha.attn_layer.v_proj.w))
+mha.attn_layer.v_proj.b = reshape(weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.value.bias"][:cpu]()[:numpy](),size(mha.attn_layer.v_proj.b))
+mha.attn_layer.k_proj.w = reshape(weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.key.weight"][:cpu]()[:numpy](),size(mha.attn_layer.k_proj.w))
+mha.attn_layer.k_proj.b = reshape(weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.key.bias"][:cpu]()[:numpy](),size(mha.attn_layer.k_proj.b))
+mha.attn_layer.o_proj.w = reshape(weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.dense.weight"][:cpu]()[:numpy](),size(mha.attn_layer.o_proj.w))
+mha.attn_layer.o_proj.b = reshape(weights["albert.encoder.albert_layer_groups.0.albert_layers.0.attention.dense.bias"][:cpu]()[:numpy](),size(mha.attn_layer.o_proj.b));
 
 
 @testset "Testing MultiHeadAttention" begin
 	# forward pass
-	mha_out = mha(permutedims(mha_test_tensor, (3, 2, 1)))
+	mha_out = mha(permutedims(mha_test_tensor, (3, 2, 1)))[1]
 	eps = 5e-6
 
 	# Compare with GT
@@ -79,7 +79,7 @@ end
 ffn_test_gt = numpy.load("test_files/ffnout.npy")
 
 # Initialize ff block with weights
-ff = FeedForwardBlock(768, 3072,"new_gelu",0);
+ff = FeedForwardBlock(768, 3072,"gelu_new",0);
 ff.ffn_sublayer.layer.fc1.w = weights["albert.encoder.albert_layer_groups.0.albert_layers.0.ffn.weight"][:cpu]()[:numpy]()
 ff.ffn_sublayer.layer.fc1.b = weights["albert.encoder.albert_layer_groups.0.albert_layers.0.ffn.bias"][:cpu]()[:numpy]()
 ff.ffn_sublayer.layer.fc2.w = weights["albert.encoder.albert_layer_groups.0.albert_layers.0.ffn_output.weight"][:cpu]()[:numpy]()
@@ -102,7 +102,7 @@ albert = ALBERTLayer(mha,ff)
 
 @testset "Testing ALBERT layer" begin
 	# forward pass
-	albert_out = albert(permutedims(mha_test_tensor, (3, 2, 1)))
+	albert_out = albert(permutedims(mha_test_tensor, (3, 2, 1)))[1]
 	eps = 2e-5
 
 	# Compare with GT

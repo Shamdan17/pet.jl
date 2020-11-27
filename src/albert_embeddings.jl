@@ -11,7 +11,7 @@ mutable struct ALBERTEmbedding
 end
 
 
-function ALBERTEmbedding(vocab_size, type_size, embed_size, max_positions, dropout=0, atype=atype())
+function ALBERTEmbedding(vocab_size, type_size, embed_size, max_positions, dropout=0; atype=atype())
     word_embeds = Embed(vocab_size, embed_size, atype=atype)
     token_type_embeds = Embed(type_size, embed_size, atype=atype)
     pos_embeds = Embed(max_positions, embed_size, atype=atype)
