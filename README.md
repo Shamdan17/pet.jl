@@ -24,3 +24,20 @@ For more details, you can always do:
 ```bash
 julia baselines.jl --help
 ```
+
+# ALBERT
+
+## Requirements
+
+- PyCall
+
+Python Dependencies
+
+- transformers
+
+## Example
+```bash
+julia albert_example.jl
+```
+Input: The capital of France is [MASK].
+Output: the capital of france is paris .
