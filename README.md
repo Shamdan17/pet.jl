@@ -40,4 +40,12 @@ Python Dependencies
 julia albert_example.jl
 ```
 Input: The capital of France is [MASK].
+
 Output: the capital of france is paris .
+
+## Running tests
+
+### All ALBERT related tests
+```bash
+julia src/albert_tests.jl
+```
