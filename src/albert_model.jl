@@ -43,12 +43,13 @@ function (alg::AlbertLayerGroup)(
             push!(layer_attentions, layer_output[end])
         end
         # Save hidden states if needed 
-        if output_hidden_states; push!(layer_hidden_states, layer_output[2]); end
+        if output_hidden_states; push!(layer_hidden_states, layer_output[1]); end
         
         x=layer_output[1]
     end
     
-    result = [x]
+    result = []
+    push!(result, x)
     if output_hidden_states; push!(result, layer_hidden_states); end
     if output_attentions; push!(result, layer_attentions); end
     
@@ -80,7 +81,11 @@ function (at::AlbertTransformer)(
     # Embed from embed dim to hidden dim
     x = at.embedding_hidden_mapping(x)
     
-    all_hiddens = output_hidden_states ? [x] : []
+    @show x
+    @show mean(x)
+
+    all_hiddens = []
+    if output_hidden_states; push!(all_hiddens, x); end
     all_attentions = []
 
     # Number of layers in a hidden group
@@ -96,6 +101,7 @@ function (at::AlbertTransformer)(
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states             
         )
+        @show layer_group_output
         # Save attentions if needed
         if output_attentions
             layer_attention = layer_group_output[end]
@@ -109,12 +115,14 @@ function (at::AlbertTransformer)(
     end
     
     if !return_dict
-        result = [x]
+        result = []
+        push!(result, x)
         if output_hidden_states; push!(result, all_hiddens); end
         if output_attentions; push!(result, all_attentions); end
         return tuple(result...)
     else
-        result = Dict("output"=>x)
+        result = Dict()
+        result["output"]=x
         if output_hidden_states; result["hiddens"]=all_hiddens; end
         if output_attentions; result["attentions"]=all_attentions; end        
         return result
@@ -179,12 +187,14 @@ function (am::AlbertModel)(
     
     sequence_outputs = return_dict ? encoder_outputs["output"] : encoder_outputs[1]
     
-    pooler_output = (am.pooler == nothing) ? nothing : am.pooler(sequence_outputs)
+    @show size(sequence_outputs)
+    pooler_output = (am.pooler == nothing) ? nothing : am.pooler(sequence_outputs[:,1,:])
     
     if !return_dict
         return tuple(sequence_outputs, pooler_output, encoder_outputs[2:end]...)
     else
-        result = Dict("last_hidden_state"=>sequence_outputs)
+        result = Dict()
+        result["last_hidden_state"]=sequence_outputs
         result["pooler_output"] = pooler_output
         if output_hidden_states; result["hiddens"]=encoder_outputs["hiddens"]; end
         if output_attentions; result["attentions"]=encoder_outputs["attentions"]; end        
@@ -224,7 +234,7 @@ function AlbertForMaskedLM(config::ALBERTConfig; atype=atype())
 end
 
 function (amlm::AlbertForMaskedLM)(
-        x,
+        x;
         attention_mask=nothing,
         token_type_ids=nothing,
         position_ids=nothing,
@@ -252,7 +262,8 @@ function (amlm::AlbertForMaskedLM)(
     if !return_dict
         return tuple(logits, outputs[3:end]...)
     else
-        result = Dict("logits"=>logits)
+        result = Dict()
+        result["logits"]=logits
         result["hidden_states"]=result["hidden_states"]
         result["attentions"]=result["attentions"]
         return result
@@ -333,7 +344,8 @@ function (asc::AlbertForSequenceClassification)(
     if !return_dict
         return tuple(logits, outputs[3:end]...)
     else
-        result = Dict("logits"=>logits)
+        result = Dict()
+        result["logits"]=logits
         result["hidden_states"]=result["hidden_states"]
         result["attentions"]=result["attentions"]
         return result
