@@ -4,6 +4,8 @@ include("albert_embeddings.jl")
 include("albert_layer.jl")
 include("layers.jl")
 include("albert_config.jl")
+@pyimport torch
+
 
 mutable struct AlbertLayerGroup
     albert_layers
@@ -80,9 +82,6 @@ function (at::AlbertTransformer)(
     )
     # Embed from embed dim to hidden dim
     x = at.embedding_hidden_mapping(x)
-    
-    @show x
-    @show mean(x)
 
     all_hiddens = []
     if output_hidden_states; push!(all_hiddens, x); end
@@ -101,7 +100,7 @@ function (at::AlbertTransformer)(
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states             
         )
-        @show layer_group_output
+
         # Save attentions if needed
         if output_attentions
             layer_attention = layer_group_output[end]
@@ -187,7 +186,6 @@ function (am::AlbertModel)(
     
     sequence_outputs = return_dict ? encoder_outputs["output"] : encoder_outputs[1]
     
-    @show size(sequence_outputs)
     pooler_output = (am.pooler == nothing) ? nothing : am.pooler(sequence_outputs[:,1,:])
     
     if !return_dict
@@ -206,17 +204,19 @@ mutable struct AlbertMLMHead
     config::ALBERTConfig
     projection_layer
     decoder
+    lnorm
 end
 
 function AlbertMLMHead(config::ALBERTConfig; atype=atype())
     projection_layer = Dense(config.hidden_size, config.embedding_size, activation=config.hidden_act, atype=atype)
-    decoder=Sublayer(Linear(config.embedding_size, config.vocab_size, atype=atype), config.vocab_size, 0, atype=atype) # They don't use dropout here
-    AlbertMLMHead(config, projection_layer, decoder)
+    decoder=Linear(config.embedding_size, config.vocab_size, atype=atype)
+    lnorm = LayerNorm(config.vocab_size, atype=atype) # They don't use dropout here
+    AlbertMLMHead(config, projection_layer, decoder, lnorm)
 end
 
 function (mlmh::AlbertMLMHead)(x)
     x = mlmh.projection_layer(x)
-    mlmh.decoder(x)
+    mlmh.decoder(mlmh.lnorm(x))
 end
 
 mutable struct AlbertForMaskedLM
@@ -249,12 +249,13 @@ function (amlm::AlbertForMaskedLM)(
         token_type_ids=token_type_ids,
         position_ids=position_ids,
         head_mask=head_mask,
-        inputs_embeds=inputs_embeds,
+        # input_embeds=inputs_embeds,
         output_attentions=output_attentions,
         output_hidden_states=output_hidden_states,
         return_dict=return_dict
     )
     
+
     sequence_outputs = return_dict ? x["last_hidden_state"] : x[1]
     
     logits = amlm.predictions(sequence_outputs)
@@ -264,8 +265,8 @@ function (amlm::AlbertForMaskedLM)(
     else
         result = Dict()
         result["logits"]=logits
-        result["hidden_states"]=result["hidden_states"]
-        result["attentions"]=result["attentions"]
+        if output_hidden_states; result["hiddens"]=x["hiddens"]; end
+        if output_attentions; result["attentions"]=x["attentions"]; end
         return result
     end
 end
@@ -385,19 +386,20 @@ function (asc::AlbertForSequenceClassification)(
     end
 end
 
-@pyimport torch
-
-# Only supports base models at the moment (doesn't load weights for heads)
-function pretrainedALBERT(modelpath::AbstractString, modelconfig; atype=atype())
+# Only loads base model at the moment (doesn't load weights for heads)
+function pretrainedAlbertModel(modelpath::AbstractString, modelconfig; atype=atype())
     if typeof(modelconfig)<:AbstractString
         modelconfig = ALBERTConfig(modelconfig)
     end
     
     model = AlbertModel(modelconfig, atype=atype)
     
-    # Import model (pretrained albert-base-v2)
+    # Import model
     weights = torch.load(modelpath)
+    initPretrainedAlbertModel(model, weights, atype=atype)
+end
     
+function initPretrainedAlbertModel(model::AlbertModel, weights::Dict; atype=atype())
     # Initialize embeddings
     model.embeddings.word_embeds.w = Param(atype(weights["albert.embeddings.word_embeddings.weight"][:cpu]()[:numpy]()'));
     model.embeddings.token_type_embeds.w = Param(atype(weights["albert.embeddings.token_type_embeddings.weight"][:cpu]()[:numpy]()'));
@@ -410,9 +412,9 @@ function pretrainedALBERT(modelpath::AbstractString, modelconfig; atype=atype())
     model.encoder.embedding_hidden_mapping.b = Param(atype(weights["albert.encoder.embedding_hidden_mapping_in.bias"][:cpu]()[:numpy]()))
     
     # Initialize layers
-    for group_idx in 1:modelconfig.num_hidden_groups
+    for group_idx in 1:length(model.encoder.albert_layer_groups)
         group = model.encoder.albert_layer_groups[group_idx]
-        for layer_idx in 1:modelconfig.inner_group_num
+        for layer_idx in 1:length(group.albert_layers)
             layer = group.albert_layers[layer_idx]
             
             prefix = "albert.encoder.albert_layer_groups.$(group_idx-1).albert_layers.$(layer_idx-1)."
@@ -448,6 +450,34 @@ function pretrainedALBERT(modelpath::AbstractString, modelconfig; atype=atype())
     model.pooler.w = Param(atype(weights["albert.pooler.weight"][:cpu]()[:numpy]()))
     model.pooler.b = Param(atype(weights["albert.pooler.bias"][:cpu]()[:numpy]()))
     
+    model
+end
+
+function pretrainedAlbertForMLM(modelpath::AbstractString, modelconfig; atype=atype())
+    if typeof(modelconfig)<:AbstractString
+        modelconfig = ALBERTConfig(modelconfig)
+    end
+    
+    model = AlbertModel(modelconfig, atype=atype)
+    
+    # Import model
+    weights = torch.load(modelpath)
+    albertModel = initPretrainedAlbertModel(AlbertModel(modelconfig, atype=atype), weights, atype=atype)
+    
+    MLMHead = AlbertMLMHead(modelconfig, atype=atype)
+    MLMHead = initPretrainedAlbertForMLM(MLMHead, weights, atype=atype)
+    
+    AlbertForMaskedLM(modelconfig,albertModel,MLMHead)
+end
+
+function initPretrainedAlbertForMLM(model::AlbertMLMHead, weights::Dict; atype=atype())
+    model.projection_layer.w = Param(atype(weights["predictions.dense.weight"][:cpu]()[:numpy]()))
+    model.projection_layer.b = Param(atype(weights["predictions.dense.bias"][:cpu]()[:numpy]()))
+    model.decoder.w = Param(atype(weights["predictions.decoder.weight"][:cpu]()[:numpy]()))
+    # model.decoder.b = Param(atype(weights["predictions.decoder.bias"][:cpu]()[:numpy]())) # "predictions.decoder.bias" is all zeros, refer to https://docs.google.com/document/d/1MMoR9aq0JYVj1hYxcWxGWzBqwq_KFtUs4zMW1-fLsPg/edit#
+    model.decoder.b = Param(atype(weights["predictions.bias"][:cpu]()[:numpy]())) 
+    model.lnorm.a = Param(atype(weights["predictions.LayerNorm.weight"][:cpu]()[:numpy]()))
+    model.lnorm.b = Param(atype(weights["predictions.LayerNorm.bias"][:cpu]()[:numpy]()))
     model
 end
 

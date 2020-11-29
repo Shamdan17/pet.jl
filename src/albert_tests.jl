@@ -3,9 +3,11 @@ using PyCall
 include("albert_attention.jl")
 include("albert_embeddings.jl")
 include("albert_layer.jl")
+include("albert_model.jl")
 
 model_url = "https://huggingface.co/albert-base-v2/resolve/main/pytorch_model.bin"
 model_path = joinpath("test_files", "pytorch_model.bin")
+model_config = joinpath("test_files", "config.json")
 
 # Download model pretrained parameters if not downloaded before.
 !isfile(model_path) && download(model_url, model_path)
@@ -98,13 +100,73 @@ ff.ffn_sublayer.norm.b = weights["albert.encoder.albert_layer_groups.0.albert_la
 end
 
 # Initialize entire Albert layer with already initialized ffn and mha
-albert = ALBERTLayer(mha,ff)
+albert_layer = ALBERTLayer(mha,ff)
 
 @testset "Testing ALBERT layer" begin
 	# forward pass
-	albert_out = albert(permutedims(mha_test_tensor, (3, 2, 1)))[1]
+	albert_out = albert_layer(permutedims(mha_test_tensor, (3, 2, 1)))[1]
 	eps = 2e-5
 
 	# Compare with GT
     @test all(abs.(albert_out .- permutedims(ffn_test_gt, (3, 2, 1))).<eps)
+end
+
+
+albert = pretrainedAlbertModel(model_path, model_config, atype=Array{Float32})
+
+# Reading ground truth output for FFN block
+model_output_gt = numpy.load("test_files/model_out.npy")
+pooler_output_gt = numpy.load("test_files/pooler_out.npy")
+hiddens_gt = numpy.load("test_files/hiddens.npy")
+attentions_gt = numpy.load("test_files/attentions.npy")
+
+
+@testset "Testing ALBERT model cpu" begin
+    # forward pass 
+    albert_out = albert(permutedims(embed_test_tensor, (2, 1)), output_attentions=true, output_hidden_states=true)
+    eps = 2e-4
+
+    model_output = albert_out["last_hidden_state"]
+    @test all(abs.(model_output .- permutedims(model_output_gt, (3, 2, 1))) .< eps)
+
+    pooler_output = albert_out["pooler_output"]
+    @test all(abs.(pooler_output .- permutedims(pooler_output_gt, (2, 1))) .< eps)
+
+    hiddens = albert_out["hiddens"]
+    # Embbeding projection
+    @test all(abs.(hiddens[1] .- permutedims(hiddens_gt[1,:,:,:], (3, 2, 1))) .< eps)
+    for i in 2:length(hiddens)
+    	@test all(abs.(hiddens[i][end] .- permutedims(hiddens_gt[i,:,:,:], (3, 2, 1))) .< eps)
+    end
+
+    attentions = albert_out["attentions"]
+    for i in 1:length(attentions)
+    	@test all(abs.(attentions[i][end] .- permutedims(attentions_gt[i,:,:,:,:], (3, 4, 2, 1))) .< eps)
+    end
+end
+
+albert = pretrainedAlbertModel(model_path, model_config, atype=KnetArray{Float32})
+
+@testset "Testing ALBERT model gpu" begin
+    # forward pass 
+    albert_out = albert(permutedims(embed_test_tensor, (2, 1)), output_attentions=true, output_hidden_states=true)
+    eps = 2e-1
+
+    model_output = Array{Float32}(albert_out["last_hidden_state"])
+    @test all(abs.(model_output .- permutedims(model_output_gt, (3, 2, 1))) .< eps)
+
+    pooler_output = Array{Float32}(albert_out["pooler_output"])
+    @test all(abs.(pooler_output .- permutedims(pooler_output_gt, (2, 1))) .< eps)
+
+    hiddens = albert_out["hiddens"]
+    # Embbeding projection
+    @test all(abs.(Array{Float32}(hiddens[1]) .- permutedims(hiddens_gt[1,:,:,:], (3, 2, 1))) .< eps)
+    for i in 2:length(hiddens)
+    	@test all(abs.(Array{Float32}(hiddens[i][end]) .- permutedims(hiddens_gt[i,:,:,:], (3, 2, 1))) .< eps)
+    end
+
+    attentions = albert_out["attentions"]
+    for i in 1:length(attentions)
+    	@test all(abs.(Array{Float32}(attentions[i][end]) .- permutedims(attentions_gt[i,:,:,:,:], (3, 4, 2, 1))) .< eps)
+    end
 end
