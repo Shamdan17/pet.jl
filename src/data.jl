@@ -11,7 +11,7 @@ macro registerDataType(name::String, typ)
     :(registeredtypes[$name]=$typ)
 end
 # Directory of one line json files to test datatype constructors
-testdatadir = joinpath("data", "test")
+testdatadir = joinpath("../data", "test")
 
 # All data objects are subtypes of this abstract type
 abstract type datum end

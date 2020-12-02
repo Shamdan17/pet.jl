@@ -11,18 +11,18 @@ Pattern-Exploiting Training in Julia. A replication of "It’s Not Just Size Tha
 
 ### All baselines
 ```bash
-julia baselines.jl
+julia src/baselines.jl
 ```
 
 ### Specific baseline
 Here are the possible flags:
 ```bash
-julia baselines.jl --dataset BoolQ/CB/COPA/MultiRC/ReCoRD/RTE/WiC/WSC/all --method Random/MostCommon/all
+julia src/baselines.jl --dataset BoolQ/CB/COPA/MultiRC/ReCoRD/RTE/WiC/WSC/all --method Random/MostCommon/all
 ```
 
 For more details, you can always do:
 ```bash
-julia baselines.jl --help
+julia src/baselines.jl --help
 ```
 
 # ALBERT
@@ -37,7 +37,7 @@ Python Dependencies
 
 ## Example
 ```bash
-julia albert_example.jl
+julia src/albert_example.jl
 ```
 Input: The capital of France is [MASK].
 
@@ -47,5 +47,5 @@ Output: the capital of france is paris .
 
 ### All ALBERT related tests
 ```bash
-julia src/albert_tests.jl
+julia src/albert/albert_tests.jl
 ```

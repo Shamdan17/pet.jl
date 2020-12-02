@@ -141,12 +141,16 @@ function main()
         println("=================================================")
         println("Most Common Answer Baseline:")
         for (dataset, metric) in metrics_to_eval
-            rndBaseline = getRandomBaseline(dataset, metric, "data/SuperGLUE/$dataset/train.jsonl", "data/SuperGLUE/$dataset/val.jsonl")
-            validationpath = "data/SuperGLUE/$dataset/val.jsonl"
+            root_path = joinpath("../data", "SuperGLUE", dataset)
+
+            train_path = joinpath(root_path, "train.jsonl")
+            val_path = joinpath(root_path, "val.jsonl")
+
+            rndBaseline = getRandomBaseline(dataset, metric, train_path, val_path)
+            validationpath = val_path
             datatype = registeredtypes[dataset]
             vld_instances = datatype.(readlines(validationpath))
-        #     println(getLabel(vld_instances[5]))
-        #     println(getChoices(vld_instances[5]))
+
             println("$dataset\t$(evaluate(rndBaseline, vld_instances))")
         end
     end
@@ -158,10 +162,15 @@ function main()
         for (dataset, metric) in metrics_to_eval
             if dataset == "ReCoRD"; continue; end
             
-            rndBaseline = getMostCommonAnswerBaseline(dataset, metric, "data/SuperGLUE/$dataset/train.jsonl", "data/SuperGLUE/$dataset/val.jsonl")
-            validationpath = "data/SuperGLUE/$dataset/val.jsonl"
+            root_path = joinpath("../data", "SuperGLUE", dataset)
+
+            train_path = joinpath(root_path, "train.jsonl")
+            val_path = joinpath(root_path, "val.jsonl")
+
+            rndBaseline = getMostCommonAnswerBaseline(dataset, metric, train_path, val_path)
+
             datatype = registeredtypes[dataset]
-            vld_instances = datatype.(readlines(validationpath))
+            vld_instances = datatype.(readlines(val_path))
 
             println("$dataset\t $(evaluate(rndBaseline, vld_instances))")
         end
