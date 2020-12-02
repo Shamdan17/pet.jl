@@ -37,15 +37,18 @@ Python Dependencies
 
 ## Example
 ```bash
-julia src/albert_example.jl
+cd src && julia albert_example.jl
 ```
 Input: The capital of France is [MASK].
 
 Output: the capital of france is paris .
 
+To use your own input, uncomment out the lines in src/albert_example.jl
+
+
 ## Running tests
 
 ### All ALBERT related tests
 ```bash
-julia src/albert/albert_tests.jl
+cd src/albert && julia albert_tests.jl
 ```

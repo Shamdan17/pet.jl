@@ -1,20 +1,22 @@
-include("src/albert_model.jl")
-include("src/albert_tokenizer.jl")
+include("albert/albert_model.jl")
+include("albert/albert_tokenizer.jl")
 
 tokenizer = AlbertTokenizer("albert-base-v2")
 
 model_url = "https://huggingface.co/albert-base-v2/resolve/main/pytorch_model.bin"
-model_path = joinpath("src", "test_files", "pytorch_model.bin")
-model_config = joinpath("src", "test_files", "config.json")
+model_path = joinpath("albert", "test_files", "pytorch_model.bin")
+model_config = joinpath("albert", "test_files", "config.json")
 
 # Download model pretrained parameters if not downloaded before.
 !isfile(model_path) && download(model_url, model_path)
 
-mlm = pretrainedAlbertForMLM("src/test_files/pytorch_model.bin", "src/test_files/config.json", atype=Array{Float32})
+mlm = pretrainedAlbertForMLM("albert/test_files/pytorch_model.bin", "albert/test_files/config.json", atype=Array{Float32})
 
-println("Enter a sentence, you can mask certain words using [MASK]")
+# println("Enter a sentence, you can mask certain words using [MASK]")
 input = "The capital of France is [MASK]."
 # input = readline()
+
+println("Input: $input")
 
 input_ids = tokenizer(input)["input_ids"]
 
