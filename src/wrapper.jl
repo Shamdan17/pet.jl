@@ -209,7 +209,7 @@ function mlm_loss(wrapper::TransformerWrapper, labeled_batch)
 		# logits=labeled_batch[""]
 		)
 
-	mlm_labels, labels = labeled_batch["mlm_labels"], labeled_batch["label"]
+	mlm_labels, labels = labeled_batch["mlm_labels"], labeled_batch["labels"]
 
 	prediction_scores = convert_mlm_logits_to_cls_logits(wrapper.prep.pvp, mlm_labels, model_outputs["logits"])
 
