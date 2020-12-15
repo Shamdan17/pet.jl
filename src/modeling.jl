@@ -343,11 +343,12 @@ function evaluate(model::TransformerWrapper, eval_data, config; priming_data=not
 
 	results = eval(model, eval_data, config.batch_size, atype=config.atype)
 
-	println(size(results["logits"]))
-	println(Array{Float32}(results["logits"][1,:]-results["logits"][2,:]))
+	# println(size(results["logits"]))
+	# println(Array{Float32}(results["logits"][1,:]-results["logits"][2,:]))
 	predictions = vec((x->x[1]).(argmax(results["logits"], dims=1)))
 	println(size(predictions))
-	println(predictions)
+	println(size(results["labels"]))
+	# println(predictions)
 
 	scores = Dict()
 

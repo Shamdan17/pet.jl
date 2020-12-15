@@ -40,12 +40,13 @@ function (p::MLMPreprocessor)(example)
 
 	logits = example.logits != nothing ? example.logits : [-1]
 
-	if example.labeled
-		mlm_labels = [i==p.mlmtokenizer.mask_token_id ? 1 : -1 for i in input_ids]
-		@assert sum(mlm_labels.==1)==1 "More than 1 or no mask tokens found in string. Input Ids: $input_ids"
-	else
-		mlm_labels = [1 for i in 1:length(input_ids)]
-	end
+	# The if statement here is only needed in case of lm training, which we don't do atm.
+	# if example.labeled
+	mlm_labels = [i==p.mlmtokenizer.mask_token_id ? 1 : -1 for i in input_ids]
+	@assert sum(mlm_labels.==1)==1 "More than 1 or no mask tokens found in string. Input Ids: $input_ids"
+	# else
+	# 	mlm_labels = [1 for i in 1:length(input_ids)]
+	# end
 
 	return Dict(
 		"input_ids"=>input_ids,
@@ -59,7 +60,7 @@ function (p::MLMPreprocessor)(example)
 end
 
 mutable struct SCPreprocessor <: preprocessor
-		sctokenizer
+	sctokenizer
 	scconfig
 	max_seq_length
 	pvp
