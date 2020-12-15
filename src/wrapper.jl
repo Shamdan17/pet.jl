@@ -47,10 +47,14 @@ pretrained_initializers = Dict(
 
 function save(save_dir::AbstractString, wrapper::TransformerWrapper)
 	# The tokenizer is a pyobject at it's core
+	tmp = wrapper.tokenizer
 	wrapper.tokenizer = nothing
 	wrapper.prep.mlmtokenizer = nothing
 	wrapper.prep.pvp.tokenizer = nothing
-	Knet.save(save_dir, "model_wrapper", wrapper)
+	Knet.save(save_dir, "model_wrapper", wrapper)	
+	wrapper.tokenizer = tmp
+	wrapper.prep.mlmtokenizer = tmp
+	wrapper.prep.pvp.tokenizer = tmp
 end
 
 function load(save_dir::AbstractString)
