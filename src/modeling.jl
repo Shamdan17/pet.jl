@@ -237,7 +237,9 @@ function train_pet_ensemble(;
 			
 			println("Saved trained model at $pattern_iter_output_dir...")
 
-			Knet.save("model.jld2", "model_wrapper", wrapper, "train_config", train_config, "eval_config", eval_config)
+			save("$pattern_iter_output_dir/model.jld2", wrapper)
+			Knet.save("$pattern_iter_output_dir/train_config.jld2", "train_config", train_config)
+			Knet.save("$pattern_iter_output_dir/eval_config.jld2", "eval_config", eval_config)
 
 			println("Saving complete.")
 
@@ -253,7 +255,7 @@ function train_pet_ensemble(;
 			println("Starting evaluation...")
 
 			if warpper == nothing
-				wrapper = Knet.load("model.jld2", "model_wrapper")
+				wrapper = load("$pattern_iter_output_dir/model.jld2", "model_wrapper")
 			end
 
 			eval_result = evaluate(wrapper, eval_data, eval_config)

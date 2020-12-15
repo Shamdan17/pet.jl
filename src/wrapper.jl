@@ -1,4 +1,4 @@
-using ProgressBars: tqdm, set_description
+using ProgressBars: tqdm, set_description, set_postfix
 import Printf.@sprintf
 include("albert/albert_config.jl")
 include("albert/albert_model.jl")
@@ -44,6 +44,18 @@ pretrained_initializers = Dict(
 	"sc"=>pretrainedAlbertForSC
 	)
 
+
+function save(save_dir::AbstractString, wrapper::TransformerWrapper)
+	# The tokenizer is a pyobject at it's core
+	wrapper.tokenizer = nothing
+	Knet.save(save_dir, "model_wrapper", wrapper)
+end
+
+function load(save_dir::AbstractString)
+	wrapper = Knet.load(save_dir, "model_wrapper")
+	wrapper.tokenizer = AlbertTokenizer("albert-base-v2")
+	return wrapper
+end
 
 function TransformerWrapper(wrapper_config::WrapperConfig)
 	tokenizer = AlbertTokenizer("albert-base-v2")#wrapper_config.model_name_or_path)
@@ -137,7 +149,7 @@ function train(
 			total_loss += value(L)
 			set_postfix(epoch_iterator, Loss=@sprintf("%.2f", value(L)))
 
-			for x in params(model)
+			for x in Knet.params(model)
 				update!(x, grad(L, x))
 				global_step += 1
 			end
@@ -212,7 +224,7 @@ function mlm_loss(wrapper::TransformerWrapper, labeled_batch)
 	mlm_labels, labels = labeled_batch["mlm_labels"], labeled_batch["labels"]
 
 	prediction_scores = convert_mlm_logits_to_cls_logits(wrapper.prep.pvp, mlm_labels, model_outputs["logits"])
-
+	
 	loss = nll(prediction_scores, labels)
 end
 
