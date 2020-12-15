@@ -435,7 +435,7 @@ function merge_logits_lists(logits_lists, reduction="mean")
 end
 		
 function save_logits(path, logits, score=-1)
-	f = open(output_file, "w")
+	f = open(path, "w")
 	write(f, score)
 	for i in size(logits, 1)
 		line = join(merged_logits[i, :], " ")
@@ -445,7 +445,7 @@ function save_logits(path, logits, score=-1)
 end
 
 function load_logits(path, getscore=false)
-	lines = readlines(logits_file)
+	lines = readlines(path)
 
 	logits = [parse.(Float32, x) for x in split.(lines[2:end])]
 	
