@@ -1,4 +1,4 @@
-import Knet.Train20: update!, minimize, gclip!, full
+import Knet.Train20: update!, minimize, gclip!, full, gclip_update!, _update!
 using LinearAlgebra: norm, lmul!, axpy!
 
 function get_linear_scheduler_with_warmup(max_steps, warmup)
