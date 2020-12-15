@@ -159,8 +159,8 @@ function train(
 
 			for x in Knet.params(model)
 				update!(x, grad(L, x))
-				global_step += 1
 			end
+			global_step += 1
 
 			if 0 < max_steps < global_step
 				break

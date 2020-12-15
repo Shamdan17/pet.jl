@@ -210,11 +210,11 @@ function train_pet_ensemble(;
 
 			# TODO: Replace with path join function
 			pattern_iter_output_dir = "$output_dir/p$pattern_id-i$iteration"
-
-			if !ispath(pattern_iter_output_dir)
+			
+			if ispath(pattern_iter_output_dir)
 				@warn "Path $pattern_iter_output_dir already exists. Skipping..." maxlog=2
 			end
-
+		
 			mkpath(pattern_iter_output_dir)
 
 			wrapper = init_model(model_config)
@@ -225,68 +225,69 @@ function train_pet_ensemble(;
 					@warn "Not implemented"
 				end
 				ipet_train_data = nothing
-			end
 
-			training_result = train_single_model(wrapper, train_data, train_config, eval_config,ipet_train_data=ipet_train_data, unlabeled_data=unlabeled_data)
+				training_result = train_single_model(wrapper, train_data, train_config, eval_config,ipet_train_data=ipet_train_data, unlabeled_data=unlabeled_data)
 
-			for k in keys(training_result)
-				results_dict[k] = training_result[k]
-			end
-
-			JSON.print(open("$pattern_iter_output_dir/results.txt", "w"), results_dict)
-			
-			println("Saved trained model at $pattern_iter_output_dir...")
-
-			save("$pattern_iter_output_dir/model.jld2", wrapper)
-			Knet.save("$pattern_iter_output_dir/train_config.jld2", "train_config", train_config)
-			Knet.save("$pattern_iter_output_dir/eval_config.jld2", "eval_config", eval_config)
-
-			println("Saving complete.")
-
-			if save_unlabeled_logits
-				logits = evaluate(wrapper, unlabeled_data, eval_config)["logits"]
-				save_logits("$pattern_iter_output_dir/logits.txt", logits)
-			end
-
-		end
-
-		# Evaluation
-		if do_eval
-			println("Starting evaluation...")
-
-			if warpper == nothing
-				wrapper = load("$pattern_iter_output_dir/model.jld2", "model_wrapper")
-			end
-
-			eval_result = evaluate(wrapper, eval_data, eval_config)
-
-			save_predictions("$pattern_iter_output_dir/predictions.jsonl", wrapper, eval_result)
-			save_logits("$pattern_iter_output_dir/eval_logits.txt", eval_result["logits"])
-
-			scores = eval_result["scores"]
-
-			println("--- RESULT (pattern_id=$pattern_id, iteration=$iteration ---")
-			println(scores)
-
-			results_dict["test_set_after_training"] = scores
-
-			JSON.print(open("$pattern_iter_output_dir/results.json", "w"), results_dict)
-			
-			for metric in keys(scores)
-				if !haskey(results, metric)
-					results[metric]=Dict()
+				for k in keys(training_result)
+					results_dict[k] = training_result[k]
 				end
-				if !haskey(results[metric], pattern_id)
-					results[metric][pattern_id] = []
+
+				JSON.print(open("$pattern_iter_output_dir/results.txt", "w"), results_dict)
+				
+				println("Saved trained model at $pattern_iter_output_dir...")
+
+				save("$pattern_iter_output_dir/model.jld2", wrapper)
+				Knet.save("$pattern_iter_output_dir/train_config.jld2", "train_config", train_config)
+				Knet.save("$pattern_iter_output_dir/eval_config.jld2", "eval_config", eval_config)
+
+				println("Saving complete.")
+
+				if save_unlabeled_logits
+					logits = evaluate(wrapper, unlabeled_data, eval_config)["logits"]
+					save_logits("$pattern_iter_output_dir/logits.txt", logits)
 				end
-				push!(results[metric][pattern_id], scores[metric])
+
 			end
 
+			# Evaluation
+			if do_eval
+				println("Starting evaluation...")
+
+				if wrapper == nothing
+					wrapper = load("$pattern_iter_output_dir/model.jld2", "model_wrapper")
+				end
+
+				eval_result = evaluate(wrapper, eval_data, eval_config)
+
+				save_predictions("$pattern_iter_output_dir/predictions.jsonl", wrapper, eval_result)
+				save_logits("$pattern_iter_output_dir/eval_logits.txt", eval_result["logits"])
+
+				scores = eval_result["scores"]
+
+				println("--- RESULT (pattern_id=$pattern_id, iteration=$iteration ---")
+				println(scores)
+
+				results_dict["test_set_after_training"] = scores
+
+				JSON.print(open("$pattern_iter_output_dir/results.json", "w"), results_dict)
+				
+				for metric in keys(scores)
+					if !haskey(results, metric)
+						results[metric]=Dict()
+					end
+					if !haskey(results[metric], pattern_id)
+						results[metric][pattern_id] = []
+					end
+					push!(results[metric][pattern_id], scores[metric])
+				end
+
+			end
 		end
 		# To get GC to flush models from memory
 		wrapper.model=nothing
 		wrapper=nothing
 	end
+
 	if do_eval
 		println("=== OVERALL RESULTS ===")
 		write_results("$pattern_iter_output_dir/results_test.txt", results)
@@ -434,11 +435,35 @@ function merge_logits_lists(logits_lists, reduction="mean")
 	return logits
 end
 		
+function save_predictions(path, wrapper, results)
+	predictions_with_idx = []
+
+	inv_label_map = Dict()
+	for (a, b) in wrapper.prep.label_map
+		inv_label_map[b]=a
+	end
+
+	for (idx, prediction_idx) in zip(results["indices"], results["predictions"])
+		prediction = inv_label_map[prediction_idx]
+		push!(predictions_with_idx, Dict("idx"=>idx, "label"=>prediction))
+	end
+
+	f = open(path, "w")
+	for line in predictions_with_idx
+		JSON.print(f, line)
+		write(f, "\n")
+	end
+	close(f)	
+end
+
 function save_logits(path, logits, score=-1)
 	f = open(path, "w")
-	write(f, score)
-	for i in size(logits, 1)
-		line = join(merged_logits[i, :], " ")
+	# To not iterate on the GPU
+	logits = Array{Float32}(logits)
+	println(size(logits))
+	write(f, "$score\n")
+	for i in 1:size(logits, 2)
+		line = join(logits[:, i], " ")
 		write(f, "$line\n")
 	end
 	close(f)
