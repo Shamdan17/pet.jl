@@ -20,10 +20,10 @@ end
 function (a::Accuracy)(x::AbstractArray, y::AbstractArray)
     return mean(x .== y)
 end
-@registerMetric("Acc", Accuracy)
+@registerMetric("acc", Accuracy)
 
 # At the moment Exact Match is the same as Accuracy. Will be updated if that changes.
-@registerMetric("EM", Accuracy)
+@registerMetric("em", Accuracy)
 
 
 # F1 metric
@@ -42,4 +42,4 @@ function (f::F1)(x::AbstractArray, y::AbstractArray)
     end
     return mean(f1s)
 end
-@registerMetric("F1", F1)
+@registerMetric("f1", F1)

@@ -33,9 +33,10 @@ struct BoolQ <: datum
     label::Bool         # Whether the Question is true or false
     idx::Int            # Index in the original dataset
     labeled::Bool       # Whether the data object has a label. If false, the label is meaningless
-    BoolQ(question::String, passage::String, label::Bool, idx::Int) = new(question, passage, label, idx, true)
-    BoolQ(question::String, passage::String, label::Nothing, idx::Int) = new(question, passage, false, idx, false)
-    BoolQ(question::String, passage::String, idx::Int) = new(question, passage, false, idx, false)
+    logits              # logits for all the labels
+    BoolQ(question::String, passage::String, label::Bool, idx::Int) = new(question, passage, label, idx, true, nothing)
+    BoolQ(question::String, passage::String, label::Nothing, idx::Int) = new(question, passage, false, idx, false, nothing)
+    BoolQ(question::String, passage::String, idx::Int) = new(question, passage, false, idx, false, nothing)
 end
 
 @registerDataType "BoolQ" BoolQ
@@ -65,9 +66,10 @@ struct CB <: datum
     label::String       # Whether the hypothesis is an entailment, contradiction, or neutral to the passage
     idx::Int            # Index in the original dataset
     labeled::Bool       # Whether the data object has a label. If false, the label is meaningless
-    CB(premise::String, hypothesis::String,label::String, idx::Int) = new(premise, hypothesis, label, idx, true)
-    CB(premise::String, hypothesis::String,label::Nothing, idx::Int) = new(premise, hypothesis, "None", idx, false)
-    CB(premise::String, hypothesis::String, idx::Int) = new(premise, hypothesis, "None", idx, false)
+    logits              # logits for all the labels
+    CB(premise::String, hypothesis::String,label::String, idx::Int) = new(premise, hypothesis, label, idx, true, nothing)
+    CB(premise::String, hypothesis::String,label::Nothing, idx::Int) = new(premise, hypothesis, "None", idx, false, nothing)
+    CB(premise::String, hypothesis::String, idx::Int) = new(premise, hypothesis, "None", idx, false, nothing)
 end
 
 @registerDataType "CB" CB
@@ -99,9 +101,10 @@ struct COPA <: datum
     label::Int          # The correct choice
     idx::Int            # Index in the original dataset
     labeled::Bool       # Whether the data object has a label. If false, the label is meaningless
-    COPA(premise::String, choice1::String, choice2::String, question::String, label::Int64, idx::Int64) = new(premise, choice1, choice2, question, label, idx, true)
-    COPA(premise::String, choice1::String, choice2::String, question::String, label::Nothing, idx::Int64) = new(premise, choice1, choice2, question, -1, idx, false) 
-    COPA(premise::String, choice1::String, choice2::String, question::String, idx::Int64) = new(premise, choice1, choice2, question, -1, idx, false)
+    logits              # logits for all the labels
+    COPA(premise::String, choice1::String, choice2::String, question::String, label::Int64, idx::Int64) = new(premise, choice1, choice2, question, label, idx, true, nothing)
+    COPA(premise::String, choice1::String, choice2::String, question::String, label::Nothing, idx::Int64) = new(premise, choice1, choice2, question, -1, idx, false, nothing)
+    COPA(premise::String, choice1::String, choice2::String, question::String, idx::Int64) = new(premise, choice1, choice2, question, -1, idx, false, nothing)
 end
 
 @registerDataType "COPA" COPA
@@ -278,9 +281,10 @@ struct RTE <: datum
     label::String       # Whether the hypothesis is an entailment, or not an entailment to the passage
     idx::Int            # Index in the original dataset
     labeled::Bool       # Whether the questions have their correct answers labeled
-    RTE(premise::String, hypothesis::String, label::String, idx::Int64) = new(premise, hypothesis, label, idx, true)
-    RTE(premise::String, hypothesis::String, label::Nothing, idx::Int64) = new(premise, hypothesis, "None", idx, false)
-    RTE(premise::String, hypothesis::String, idx::Int64) = new(premise, hypothesis, "None", idx, false)
+    logits              # logits for all the labels
+    RTE(premise::String, hypothesis::String, label::String, idx::Int64) = new(premise, hypothesis, label, idx, true, nothing)
+    RTE(premise::String, hypothesis::String, label::Nothing, idx::Int64) = new(premise, hypothesis, "None", idx, false, nothing)
+    RTE(premise::String, hypothesis::String, idx::Int64) = new(premise, hypothesis, "None", idx, false, nothing)
 end
 
 @registerDataType "RTE" RTE
@@ -315,9 +319,10 @@ struct WiC <: datum
     end2::Int           # End index of shared word in second sentence 
     idx::Int            # Index in the original dataset
     labeled::Bool       # Whether the questions have their correct answers labeled
-    WiC(word::String, sentence1::String, sentence2::String, label::Bool, start1::Int64, end1::Int64, start2::Int64, end2::Int64, idx::Int64)=new(word, sentence1, sentence2, label, start1, end1, start2, end2, idx, true)  
-    WiC(word::String, sentence1::String, sentence2::String, label::Nothing, start1::Int64, end1::Int64, start2::Int64, end2::Int64, idx::Int64)=new(word, sentence1, sentence2, false, start1, end1, start2, end2, idx, false)  
-    WiC(word::String, sentence1::String, sentence2::String, start1::Int64, end1::Int64, start2::Int64, end2::Int64, idx::Int64)=new(word, sentence1, sentence2, false, start1, end1, start2, end2, idx, false)  
+    logits              # logits for all the labels
+    WiC(word::String, sentence1::String, sentence2::String, label::Bool, start1::Int64, end1::Int64, start2::Int64, end2::Int64, idx::Int64)=new(word, sentence1, sentence2, label, start1, end1, start2, end2, idx, true, nothing)  
+    WiC(word::String, sentence1::String, sentence2::String, label::Nothing, start1::Int64, end1::Int64, start2::Int64, end2::Int64, idx::Int64)=new(word, sentence1, sentence2, false, start1, end1, start2, end2, idx, false, nothing)  
+    WiC(word::String, sentence1::String, sentence2::String, start1::Int64, end1::Int64, start2::Int64, end2::Int64, idx::Int64)=new(word, sentence1, sentence2, false, start1, end1, start2, end2, idx, false, nothing)  
 end
 
 @registerDataType "WiC" WiC
@@ -356,9 +361,10 @@ struct WSC <: datum
     pronoun::String        # The pronoun starting at the given index 
     idx::Int            # Index in the original dataset
     labeled::Bool       # Whether the questions have their correct answers labeled
-    WSC(text::String, label::Bool, start1::Int64, entity::String, start2::Int64, pronoun::String, idx::Int64)=new(text, label, start1, entity, start2, pronoun, idx, true)
-    WSC(text::String, label::Nothing, start1::Int64, entity::String, start2::Int64, pronoun::String, idx::Int64)=new(text, false, start1, entity, start2, pronoun, idx, false)
-    WSC(text::String, start1::Int64, entity::String, start2::Int64, pronoun::String, idx::Int64)=new(text, false, start1, entity, start2, pronoun, idx, false)
+    logits              # logits for all the labels
+    WSC(text::String, label::Bool, start1::Int64, entity::String, start2::Int64, pronoun::String, idx::Int64)=new(text, label, start1, entity, start2, pronoun, idx, true, nothing)
+    WSC(text::String, label::Nothing, start1::Int64, entity::String, start2::Int64, pronoun::String, idx::Int64)=new(text, false, start1, entity, start2, pronoun, idx, false, nothing)
+    WSC(text::String, start1::Int64, entity::String, start2::Int64, pronoun::String, idx::Int64)=new(text, false, start1, entity, start2, pronoun, idx, false, nothing)
 end
 
 @registerDataType "WSC" WSC

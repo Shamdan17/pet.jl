@@ -299,6 +299,48 @@ function (amlm::AlbertForMaskedLM)(
     return nll(output, labels, average=average)
 end
 
+function (amlm::AlbertForMaskedLM)(;
+        input_ids=nothing,
+        labels=nothing,
+        average=true,
+        attention_mask=nothing,
+        token_type_ids=nothing,
+        position_ids=nothing,
+        head_mask=nothing,
+        output_attentions=false,
+        output_hidden_states=false,
+        return_dict=true
+    )
+    @assert input_ids!=nothing
+    if labels!=nothing
+        amlm(
+            input_ids, 
+            labels,
+            average,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            # inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict
+            )
+    else
+        amlm(
+            input_ids, 
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            # inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict
+            )
+    end
+end
+
 mutable struct AlbertForSequenceClassification
     config::ALBERTConfig
     num_labels
@@ -330,7 +372,7 @@ function (asc::AlbertForSequenceClassification)(
         token_type_ids=token_type_ids,
         position_ids=position_ids,
         head_mask=head_mask,
-        inputs_embeds=inputs_embeds,
+        # inputs_embeds=inputs_embeds,
         output_attentions=output_attentions,
         output_hidden_states=output_hidden_states,
         return_dict=return_dict
@@ -371,7 +413,7 @@ function (asc::AlbertForSequenceClassification)(
         token_type_ids=token_type_ids,
         position_ids=position_ids,
         head_mask=head_mask,
-        inputs_embeds=inputs_embeds,
+        # inputs_embeds=inputs_embeds,
         output_attentions=output_attentions,
         output_hidden_states=output_hidden_states,
         return_dict=return_dict)
@@ -386,8 +428,51 @@ function (asc::AlbertForSequenceClassification)(
     end
 end
 
+function (asc::AlbertForSequenceClassification)(;
+        input_ids=nothing,
+        labels=nothing,
+        average=true,
+        attention_mask=nothing,
+        token_type_ids=nothing,
+        position_ids=nothing,
+        head_mask=nothing,
+        output_attentions=false,
+        output_hidden_states=false,
+        return_dict=true
+    )
+    @assert input_ids!=nothing
+    if labels!=nothing
+        asc(
+            input_ids, 
+            labels,
+            average,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            # inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict
+            )
+    else
+        asc(
+            input_ids, 
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            # inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict
+            )
+    end
+end
+
+
 # Only loads base model at the moment (doesn't load weights for heads)
-function pretrainedAlbertModel(modelpath::AbstractString, modelconfig; atype=atype())
+function pretrainedAlbertModel(modelpath::AbstractString, modelconfig; atype=atype(), o...)
     if typeof(modelconfig)<:AbstractString
         modelconfig = ALBERTConfig(modelconfig)
     end
@@ -396,10 +481,10 @@ function pretrainedAlbertModel(modelpath::AbstractString, modelconfig; atype=aty
     
     # Import model
     weights = torch.load(modelpath)
-    initPretrainedAlbertModel(model, weights, atype=atype)
+    initPretrainedAlbertModel!(model, weights, atype=atype)
 end
     
-function initPretrainedAlbertModel(model::AlbertModel, weights::Dict; atype=atype())
+function initPretrainedAlbertModel!(model::AlbertModel, weights::Dict; atype=atype())
     # Initialize embeddings
     model.embeddings.word_embeds.w = Param(atype(weights["albert.embeddings.word_embeddings.weight"][:cpu]()[:numpy]()'));
     model.embeddings.token_type_embeds.w = Param(atype(weights["albert.embeddings.token_type_embeddings.weight"][:cpu]()[:numpy]()'));
@@ -453,7 +538,7 @@ function initPretrainedAlbertModel(model::AlbertModel, weights::Dict; atype=atyp
     model
 end
 
-function pretrainedAlbertForMLM(modelpath::AbstractString, modelconfig; atype=atype())
+function pretrainedAlbertForMLM(modelpath::AbstractString, modelconfig; atype=atype(), o...)
     if typeof(modelconfig)<:AbstractString
         modelconfig = ALBERTConfig(modelconfig)
     end
@@ -462,15 +547,15 @@ function pretrainedAlbertForMLM(modelpath::AbstractString, modelconfig; atype=at
     
     # Import model
     weights = torch.load(modelpath)
-    albertModel = initPretrainedAlbertModel(AlbertModel(modelconfig, atype=atype), weights, atype=atype)
+    albertModel = initPretrainedAlbertModel!(model, weights, atype=atype)
     
     MLMHead = AlbertMLMHead(modelconfig, atype=atype)
-    MLMHead = initPretrainedAlbertForMLM(MLMHead, weights, atype=atype)
+    MLMHead = initPretrainedAlbertForMLM!(MLMHead, weights, atype=atype)
     
     AlbertForMaskedLM(modelconfig,albertModel,MLMHead)
 end
 
-function initPretrainedAlbertForMLM(model::AlbertMLMHead, weights::Dict; atype=atype())
+function initPretrainedAlbertForMLM!(model::AlbertMLMHead, weights::Dict; atype=atype())
     model.projection_layer.w = Param(atype(weights["predictions.dense.weight"][:cpu]()[:numpy]()))
     model.projection_layer.b = Param(atype(weights["predictions.dense.bias"][:cpu]()[:numpy]()))
     model.decoder.w = Param(atype(weights["predictions.decoder.weight"][:cpu]()[:numpy]()))
@@ -481,3 +566,18 @@ function initPretrainedAlbertForMLM(model::AlbertMLMHead, weights::Dict; atype=a
     model
 end
 
+
+function pretrainedAlbertForSC(modelpath::AbstractString, modelconfig; num_labels=2, atype=atype(), o...)
+    if typeof(modelconfig)<:AbstractString
+        modelconfig = ALBERTConfig(modelconfig)
+    end
+    
+    model = AlbertForSequenceClassification(modelconfig, num_labels, config.classifier_dropout_prob, atype=atype)
+    
+    # Import model
+    weights = torch.load(modelpath)
+    
+    initPretrainedAlbertModel!(model.albert, weights, atype=atype)
+
+    model
+end
