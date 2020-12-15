@@ -4,7 +4,7 @@ include("data.jl")
 abstract type PVP end
 
 
-struct BoolQPVP<:PVP
+mutable struct BoolQPVP<:PVP
 	tokenizer
 	# wrapper
 	pattern_id

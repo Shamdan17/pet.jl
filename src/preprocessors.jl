@@ -2,7 +2,7 @@ include("pvp.jl")
 
 abstract type preprocessor end
 
-struct MLMPreprocessor <: preprocessor
+mutable struct MLMPreprocessor <: preprocessor
 	mlmtokenizer
 	mlmconfig
 	max_seq_length
@@ -58,7 +58,7 @@ function (p::MLMPreprocessor)(example)
 		)
 end
 
-struct SCPreprocessor <: preprocessor
+mutable struct SCPreprocessor <: preprocessor
 		sctokenizer
 	scconfig
 	max_seq_length
