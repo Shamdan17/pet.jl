@@ -23,7 +23,7 @@ end
 # alpha: the alpha parameter for auxiliary language modeling
 # temperature: the temperature for distillation
 # atype: KnetArray{Float32} or Array{Float32}
-struct TrainConfig
+mutable struct TrainConfig
 	batch_size
 	unlabeled_batch_size
 	num_train_epochs
@@ -344,12 +344,7 @@ function evaluate(model::TransformerWrapper, eval_data, config; priming_data=not
 
 	results = eval(model, eval_data, config.batch_size, atype=config.atype)
 
-	# println(size(results["logits"]))
-	# println(Array{Float32}(results["logits"][1,:]-results["logits"][2,:]))
 	predictions = vec((x->x[1]).(argmax(results["logits"], dims=1)))
-	#println(size(predictions))
-	#println(size(results["labels"]))
-	# println(predictions)
 
 	scores = Dict()
 
@@ -375,7 +370,7 @@ function write_results(path, results)
 			avg = mean(results[metric][pattern_id])
 			stdv = std(results[metric][pattern_id])
 
-			result_str = "$metric-p$pattern_id: $mean +- $stdv\n"
+			result_str = "$metric-p$pattern_id: $avg +- $stdv\n"
 			print(result_str)
 			write(f, result_str)
 		end
@@ -460,7 +455,6 @@ function save_logits(path, logits, score=-1)
 	f = open(path, "w")
 	# To not iterate on the GPU
 	logits = Array{Float32}(logits)
-	println(size(logits))
 	write(f, "$score\n")
 	for i in 1:size(logits, 2)
 		line = join(logits[:, i], " ")
