@@ -8,7 +8,7 @@ def init(modelname):
 
 
 def tokenize(model, sentence, **kwargs):
-	return model(sentence, **kwargs)
+	return model(sentence, truncation=True, **kwargs)
 
 def detokenize(model, tokens, **kwargs):
 	return model.convert_ids_to_tokens(tokens, **kwargs)

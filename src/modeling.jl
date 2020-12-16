@@ -290,7 +290,7 @@ function train_pet_ensemble(;
 
 	if do_eval
 		println("=== OVERALL RESULTS ===")
-		write_results("$pattern_iter_output_dir/results_test.txt", results)
+		write_results("$output_dir/results_test.txt", results)
 	end
 	println("=== Ensemble Training Complete ===")
 end
@@ -347,8 +347,8 @@ function evaluate(model::TransformerWrapper, eval_data, config; priming_data=not
 	# println(size(results["logits"]))
 	# println(Array{Float32}(results["logits"][1,:]-results["logits"][2,:]))
 	predictions = vec((x->x[1]).(argmax(results["logits"], dims=1)))
-	println(size(predictions))
-	println(size(results["labels"]))
+	#println(size(predictions))
+	#println(size(results["labels"]))
 	# println(predictions)
 
 	scores = Dict()
@@ -407,24 +407,24 @@ function merge_logits(logits_dir, output_file, reduction)
 
 		results = JSON.parse(read(open(results_file), String))
 		# After training it's almost always 1
-		results_train = results["train_set_before_training"]
+		results_train = results["train_set_before_training"]["acc"]
 
-		logits = [parse.(Float32, x) for x in split.(readlines(logits_file))]
+		logits = load_logits(logits_file)
 
 		println("File $results_file: Score: $results_train, #logits $(length(logits)), #labels = $(length(logits[1]))")
 
 		logits = hcat(logits...)
 
-		push!(all_logits_list, (score, logits))
+		push!(all_logits_list, (results_train, logits))
 	end
 
-	merged_logits = merge_logits_lists
+	merged_logits = merge_logits_lists(all_logits_list, reduction)
 	save_logits(output_file, merged_logits)
 end
 
 function merge_logits_lists(logits_lists, reduction="mean")
 	weights = (x->x[1]).(logits_lists)
-	logits = cat([reshape(x, 1, size(x)...) for x in (logits_lists)]..., dims=1)
+	logits = cat([reshape(x[2], 1, size(x[2])...) for x in (logits_lists)]..., dims=1)
 
 	if reduction == "mean"
 		logits = mean(logits, dims=1)
@@ -432,7 +432,7 @@ function merge_logits_lists(logits_lists, reduction="mean")
 		logits = mean(weights.*logits, dims=1)./sum(weights)
 	end
 
-	return logits
+	return reshape(logits, size(logits)[2:end]...)
 end
 		
 function save_predictions(path, wrapper, results)

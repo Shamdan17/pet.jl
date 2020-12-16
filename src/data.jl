@@ -27,7 +27,7 @@ end
 
 # BoolQ data object
 # Original paper: https://arxiv.org/abs/1905.10044
-struct BoolQ <: datum
+mutable struct BoolQ <: datum
     question::String    # Question
     passage::String     # Passage
     label::Bool         # Whether the Question is true or false
@@ -60,7 +60,7 @@ end
 
 # CommitmentBank data object
 # Original paper: https://semanticsarchive.net/Archive/Tg3ZGI2M/Marneffe.pdf
-struct CB <: datum
+mutable struct CB <: datum
     premise::String     # Premise
     hypothesis::String  # Hypothesis
     label::String       # Whether the hypothesis is an entailment, contradiction, or neutral to the passage
@@ -93,7 +93,7 @@ end
 
 # COPA data object
 # Original paper: https://people.ict.usc.edu/~gordon/publications/AAAI-SPRING11A.PDF
-struct COPA <: datum
+mutable struct COPA <: datum
     premise::String     # Premise
     choice1::String     # First choice
     choice2::String     # Second choice
@@ -132,7 +132,7 @@ end
 
 # MultiRC data object
 # Original paper: https://www.aclweb.org/anthology/N18-1023/
-struct MultiRCOption
+mutable struct MultiRCOption
     text::String
     label::Bool
     idx::Int
@@ -147,7 +147,7 @@ function MultiRCOption(content::Dict)
     MultiRCOption(text, label, idx, labeled)
 end
 
-struct MultiRCQuestion
+mutable struct MultiRCQuestion
     question::String
     options::Array{MultiRCOption}
     idx::Int
@@ -162,7 +162,7 @@ function MultiRCQuestion(content::Dict)
     MultiRCQuestion(question, options, idx, labeled)
 end
 
-struct MultiRC <: datum
+mutable struct MultiRC <: datum
     passage::String     # The passage
     questions::Array{MultiRCQuestion} # An array of questions about the passage along with answer options
     idx::Int            # Index in the original dataset
@@ -191,7 +191,7 @@ function getLabel(m::MultiRC)
 end
 
 
-struct ReCoRDAnswer
+mutable struct ReCoRDAnswer
     start::Int
     ending::Int
     text::String
@@ -205,7 +205,7 @@ function ReCoRDAnswer(content::Dict, ctx::String)
     ReCoRDAnswer(st, nd, text)
 end
 
-struct ReCoRDQuestion
+mutable struct ReCoRDQuestion
     query::String       
     answers::Array{ReCoRDAnswer}
     idx::Int
@@ -221,7 +221,7 @@ function ReCoRDQuestion(content::Dict, ctx::String)
 end
 
 
-struct ReCoRDEntity
+mutable struct ReCoRDEntity
     start::Int
     ending::Int
     text::String
@@ -236,7 +236,7 @@ function ReCoRDEntity(content::Dict, ctx::String)
 end
 
 # ReCoRD data object
-struct ReCoRD <: datum
+mutable struct ReCoRD <: datum
     source::String      # Text source
     text::String        # Context text
     entities::Array{ReCoRDEntity} # Array of entities
@@ -275,7 +275,7 @@ end
 
 
 # RTE data object
-struct RTE <: datum
+mutable struct RTE <: datum
     premise::String     # Premise
     hypothesis::String  # Hypothesis
     label::String       # Whether the hypothesis is an entailment, or not an entailment to the passage
@@ -308,7 +308,7 @@ end
 
 
 # WiC data object
-struct WiC <: datum
+mutable struct WiC <: datum
     word::String        # Shared word
     sentence1::String   # First sentence
     sentence2::String   # Second sentence
@@ -352,7 +352,7 @@ end
 
 
 # WSC data object
-struct WSC <: datum
+mutable struct WSC <: datum
     text::String        # Sentence
     label::Bool         # Whether the pronoun refers to the entity
     start1::Int         # Start index of the entity's span

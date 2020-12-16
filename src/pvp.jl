@@ -85,9 +85,13 @@ function convert_mlm_logits_to_cls_logits(pvp::PVP, mlm_labels, logits)
 		m2c_tensor[label_idx] = id
 	end
 
+	println("size(m2c_tensor)", size(m2c_tensor))
+	println("size(cls_logits)", size(logits))
 	# logits = V x N x B
-	cls_logits = logits[m2c_tensor, :, :] # length(label_list) x N x B
-
+	N, B = size(logits)[2:end]
+	logits = reshape(logits, :, N*B)
+	cls_logits = reshape(logits[m2c_tensor, :], N, B) # length(label_list) x N x B
+	
 	# Get the logits corresponding to the masks
 	masked_logits = reshape(reshape(cls_logits, length(m2c_tensor), :)[:, reshape(mlm_labels, :).>0], length(m2c_tensor), :)  # length(m2c_tensor)  x B
 
