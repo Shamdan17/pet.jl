@@ -55,7 +55,7 @@ function attnmask(input, keymask, do_selfmask) # s = (Tq, Tk, H, B), keymask = (
     mask = nothing
     if keymask != nothing
         @assert size(keymask) == (size(input, 1), size(input, 4))
-        mask = reshape(keymask, size(input, 1), 1, 1, size(input, 4))
+        mask = reshape(keymask, 1, size(input, 1), 1, size(input, 4))
     end
     if do_selfmask
         @assert size(input, 1) == size(input, 2)
