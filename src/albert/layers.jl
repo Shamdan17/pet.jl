@@ -10,7 +10,7 @@ include("gelu_new.jl")
 # Valid activation functions
 activations = Dict(
     "relu"=>relu,
-    "tanh"=>Base.tanh,
+    "tanh"=>(x->2(sigm(2x)-0.5)),
     "elu"=>elu,
     "sigm"=>sigm,
     "gelu"=>gelu,

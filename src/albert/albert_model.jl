@@ -185,7 +185,7 @@ function (am::AlbertModel)(
     )
     
     sequence_outputs = return_dict ? encoder_outputs["output"] : encoder_outputs[1]
-    
+
     pooler_output = (am.pooler == nothing) ? nothing : am.pooler(sequence_outputs[:,1,:])
     
     if !return_dict
@@ -365,7 +365,7 @@ function (asc::AlbertForSequenceClassification)(
         output_hidden_states=false,
         return_dict=true
     )
-    
+
     x = asc.albert(
         x, 
         attention_mask=attention_mask,
@@ -377,10 +377,10 @@ function (asc::AlbertForSequenceClassification)(
         output_hidden_states=output_hidden_states,
         return_dict=return_dict
     )
-    
+
     pooler_output = return_dict ? x["pooler_output"] : x[2]
-    
-    pooler_output = dropout(pooler_outout, asc.pdrop)
+
+    pooler_output = dropout(pooler_output, asc.pdrop)
     
     logits = asc.classifier(pooler_output)
     
@@ -389,8 +389,8 @@ function (asc::AlbertForSequenceClassification)(
     else
         result = Dict()
         result["logits"]=logits
-        result["hidden_states"]=result["hidden_states"]
-        result["attentions"]=result["attentions"]
+        if output_hidden_states; result["hiddens"]=x["hiddens"]; end
+        if output_attentions; result["attentions"]=x["attentions"]; end
         return result
     end
 end
@@ -417,7 +417,11 @@ function (asc::AlbertForSequenceClassification)(
         output_attentions=output_attentions,
         output_hidden_states=output_hidden_states,
         return_dict=return_dict)
-    
+    println(labels)
+    if labels==nothing 
+        return output 
+    end
+
     output= return_dict ? output["logits"] : output[1]
     
     if asc.num_labels == 1 # Regression
@@ -559,8 +563,8 @@ function initPretrainedAlbertForMLM!(model::AlbertMLMHead, weights::Dict; atype=
     model.projection_layer.w = Param(atype(weights["predictions.dense.weight"][:cpu]()[:numpy]()))
     model.projection_layer.b = Param(atype(weights["predictions.dense.bias"][:cpu]()[:numpy]()))
     model.decoder.w = Param(atype(weights["predictions.decoder.weight"][:cpu]()[:numpy]()))
-    # model.decoder.b = Param(atype(weights["predictions.decoder.bias"][:cpu]()[:numpy]())) # "predictions.decoder.bias" is all zeros, refer to https://docs.google.com/document/d/1MMoR9aq0JYVj1hYxcWxGWzBqwq_KFtUs4zMW1-fLsPg/edit#
-    model.decoder.b = Param(atype(weights["predictions.bias"][:cpu]()[:numpy]())) 
+    model.decoder.b = Param(atype(weights["predictions.decoder.bias"][:cpu]()[:numpy]())) # "predictions.decoder.bias" is all zeros, refer to https://docs.google.com/document/d/1MMoR9aq0JYVj1hYxcWxGWzBqwq_KFtUs4zMW1-fLsPg/edit#
+    # model.decoder.b = Param(atype(weights["predictions.bias"][:cpu]()[:numpy]())) 
     model.lnorm.a = Param(atype(weights["predictions.LayerNorm.weight"][:cpu]()[:numpy]()))
     model.lnorm.b = Param(atype(weights["predictions.LayerNorm.bias"][:cpu]()[:numpy]()))
     model
@@ -572,7 +576,7 @@ function pretrainedAlbertForSC(modelpath::AbstractString, modelconfig; num_label
         modelconfig = ALBERTConfig(modelconfig)
     end
     
-    model = AlbertForSequenceClassification(modelconfig, num_labels, config.classifier_dropout_prob, atype=atype)
+    model = AlbertForSequenceClassification(modelconfig, num_labels, modelconfig.classifier_dropout_prob, atype=atype)
     
     # Import model
     weights = torch.load(modelpath)
