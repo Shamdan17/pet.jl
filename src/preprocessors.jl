@@ -1,9 +1,10 @@
 include("pvp.jl")
+include("task_helpers.jl")
 
 abstract type preprocessor end
 
 mutable struct MLMPreprocessor <: preprocessor
-	mlmtokenizer
+	tokenizer
 	mlmconfig
 	max_seq_length
 	pvp
@@ -17,20 +18,19 @@ end
 
 
 # Converts an input example 
-function (p::MLMPreprocessor)(example)
+function (p::MLMPreprocessor)(example; training=true, o...)
 
-	input_ids, token_type_ids = encode(p.pvp, example, p.max_seq_length)
+	input_ids, token_type_ids = encode(p.pvp, example, p.max_seq_length, training=training, o...)
 
 	attention_mask = [1 for i in 1:length(input_ids)]
 
 	padding_length = p.max_seq_length - length(input_ids)
 
-	# TODO: Skip longer sequences?
-	input_ids = [input_ids..., [p.mlmtokenizer.pad_token_id for i in 1:padding_length]...]#[1:p.max_seq_length]
+	input_ids = [input_ids..., [p.tokenizer.pad_token_id for i in 1:padding_length]...]
 
-	token_type_ids = [token_type_ids..., [p.mlmtokenizer.pad_token_type_id for i in 1:padding_length]...]#[1:p.max_seq_length]
+	token_type_ids = [token_type_ids..., [p.tokenizer.pad_token_type_id for i in 1:padding_length]...]
 
-	attention_mask = [attention_mask..., [0 for i in 1:padding_length]...]#[1:p.max_seq_length]
+	attention_mask = [attention_mask..., [0 for i in 1:padding_length]...]
 
 	@assert length(input_ids) == p.max_seq_length "Got inputs of length: $(length(input_ids)). Expected: $(p.max_seq_length)"
 	@assert length(token_type_ids) == p.max_seq_length
@@ -42,13 +42,13 @@ function (p::MLMPreprocessor)(example)
 
 	# The if statement here is only needed in case of lm training, which we don't do atm.
 	# if example.labeled
-	mlm_labels = [i==p.mlmtokenizer.mask_token_id ? 1 : -1 for i in input_ids]
-	@assert sum(mlm_labels.==1)==1 "More than 1 or no mask tokens found in string. Input Ids: $input_ids"
+	mlm_labels = [i==p.tokenizer.mask_token_id ? 1 : -1 for i in input_ids]
+	@assert hasMultipleMasks(example) || sum(mlm_labels.==1)==1 "More than 1 or no mask tokens found in string. Input Ids: $input_ids"
 	# else
 	# 	mlm_labels = [1 for i in 1:length(input_ids)]
 	# end
 
-	return Dict(
+	return Dict{Any,Any}(
 		"input_ids"=>input_ids,
 		"attention_mask"=>attention_mask,
 		"token_type_ids"=>token_type_ids,
@@ -60,35 +60,38 @@ function (p::MLMPreprocessor)(example)
 end
 
 mutable struct SCPreprocessor <: preprocessor
-	sctokenizer
+	tokenizer
 	scconfig
 	max_seq_length
 	pvp
 	label_map::Dict
 end
 
-function SCPreprocessor(tokenizer, scconfig, pvp, labels)
+function SCPreprocessor(tokenizer, scconfig,max_seq_length, pvp, labels)
 	label_map = Dict(label=>i for (i, label) in enumerate(labels))
-	SCPreprocessor(tokenizer, scconfig, pvp, labels)
+	SCPreprocessor(tokenizer, scconfig, max_seq_length, pvp, label_map)
 end
 
-
 # Converts an input example 
-function (p::SCPreprocessor)(example)
+function (p::SCPreprocessor)(example; training=true, o...)
 
-	input_ids, token_type_ids = encode(p.pvp, example)
+	input_ids, token_type_ids = get_sc_inputs(example, p)
+	
+	if input_ids==nothing
+		input_ids, token_type_ids = encode(p.pvp, example, p.max_seq_length, training=training)
+	end
 
 	attention_mask = [1 for i in 1:length(input_ids)]
 
 	padding_length = p.max_seq_length - length(input_ids)
 
-	input_ids = [input_ids..., [p.sctokenizer.pad_token_id for i in 1:padding_length]]
+	input_ids = [input_ids..., [p.tokenizer.pad_token_id for i in 1:padding_length]...]
 
-	token_type_ids = [token_type_ids..., [p.sctokenizer.pad_token_type_id for i in 1:padding_length]]
+	token_type_ids = [token_type_ids..., [p.tokenizer.pad_token_type_id for i in 1:padding_length]...]
 
-	attention_mask = [attention_mask..., [0 for i in 1:padding_length]]
+	attention_mask = [attention_mask..., [0 for i in 1:padding_length]...]
 
-	@assert length(input_ids) == p.max_seq_length
+	@assert length(input_ids) == p.max_seq_length "Got inputs of length: $(length(input_ids)). Expected: $(p.max_seq_length)"
 	@assert length(token_type_ids) == p.max_seq_length
 	@assert length(attention_mask) == p.max_seq_length
 
@@ -109,3 +112,6 @@ function (p::SCPreprocessor)(example)
 		)
 end
 
+function hasMultipleMasks(example)
+	return typeof(example)==ReCoRD || typeof(example)==COPA || typeof(example)==WSC
+end
