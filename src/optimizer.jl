@@ -52,6 +52,12 @@ function gclip_update!(w, g, p::AdamW)
     _update!(w, g, p)
 end
 
+# Returns the lr that was used in the last update.
+function get_last_lr(p::AdamW)
+    return p.scheduler!=nothing ?  p.scheduler(p.t) * p.lr : p.lr
+end
+
+
 AdamW(; lr=0.001, gclip=0, beta1=0.9, beta2=0.999, eps=1e-8, wdecayfunc=nothing, scheduler=nothing)=AdamW(lr, beta1, beta2, eps, 0, gclip, nothing, nothing, scheduler, wdecayfunc)
 adamw(f,d;lr=0.001,gclip=0,beta1=0.9,beta2=0.999,eps=1e-8, wdecayfunc=nothing, scheduler=nothing,o...)=minimize(f,d,AdamW(lr,beta1,beta2,eps,0,gclip,nothing,nothing, scheduler, wdecayfunc);o...)
 adamw!(x...;o...)=for y in adamw(x...;o...); end
