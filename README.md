@@ -5,19 +5,31 @@ Pattern-Exploiting Training in Julia. A replication of "It’s Not Just Size Tha
 
 ```bash
 ./download-data.sh
+./download-albert.sh
 ```
+
+## Replicating experiments
+
+Scripts for the PET and iPET versions of each dataset can be found under src/scripts.
+
+To run an experiment, for example boolq with PET, simply do:
+
+```bash
+cd src && julia scripts/boolq_pet.jl
+```
+
 
 ## Running Baselines
 
 ### All baselines
 ```bash
-julia src/baselines.jl
+cd src && julia baselines.jl
 ```
 
 ### Specific baseline
 Here are the possible flags:
 ```bash
-julia src/baselines.jl --dataset BoolQ/CB/COPA/MultiRC/ReCoRD/RTE/WiC/WSC/all --method Random/MostCommon/all
+cd src && julia baselines.jl --dataset BoolQ/CB/COPA/RTE/WiC/WSC/all --method Random/MostCommon/all
 ```
 
 For more details, you can always do:

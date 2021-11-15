@@ -96,14 +96,14 @@ end
 
 # Datasets and corresponding metrics
 datatypemetrics = Dict([
-        ("BoolQ", ["Acc"]),
-        ("CB", ["Acc"]),
-        ("COPA", ["Acc"]),
-        ("MultiRC", ["Acc", "F1"]),
-        ("ReCoRD", ["EM", "F1"]),
-        ("RTE", ["Acc"]),
-        ("WiC", ["Acc"]),
-        ("WSC", ["Acc"])
+        ("BoolQ", ["acc"]),
+        ("CB", ["acc"]),
+        ("COPA", ["acc"]),
+#        ("MultiRC", ["acc", "f1"]),
+#        ("ReCoRD", ["em", "f1"]),
+        ("RTE", ["acc"]),
+        ("WiC", ["acc"]),
+        ("WSC", ["acc"])
         ])
 
 
